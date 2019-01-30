@@ -46,30 +46,42 @@ func ReadFile(filepath string) string {
 	return string(b)
 }
 
-// CreateNewServiceNode creates a new service node for a codebase
-func CreateNewServiceNode(serviceName string, version string) {
+// CreateNewServiceVersionNode creates a new service node for a codebase. DO NOT CALL THIS FUNCTION
+// WITHOUT A CLUSTER VERSION NODE IN CONTEXT
+func CreateNewServiceVersionNode(serviceName string, version string) string {
 	query := fmt.Sprintf(`
-		graph.addVertex(label,'service',
-						'name', '%s',
-						'version', '%s')
-					  `, serviceName, version)
-	gremlinResponse := RunQuery(query)
-	log.Print(gremlinResponse)
+		serviceVersion = g.addV('service_version').property('name', '%s').property('version', '%s').next();
+		clusterVersion.addEdge('contains_service_at_version', serviceVersion);`, serviceName, version)
+	return query
 }
 
-// CreateNewFunctionNode adds a new function node to the graph and an edge between it and it's
-// parent service
-func CreateNewFunctionNode(functionName string) {
+// CreateNewPackageNode creates a new package node and joins it using an edge
+// to the parent service node.
+func CreateNewPackageNode(packagename string) string {
+	query := fmt.Sprintf(`packageNode = g.addV('package').property('name', '%s').next();
+	serviceVersion.addEdge('contains_package', packageNode);`, packagename)
+	return query
+}
+
+// CreateFunctionNodes adds function nodes to the graph and an edge between it and it's
+// parent service and it's package
+// DO NOT CALL CreateNewPackageNode BEFORE YOU'VE ENTERED ALL THE NODES FOR A SERVICE
+func CreateFunctionNodes(functionNames []string) string {
+	var fullQuery string
+	for _, fn := range functionNames {
+		query := fmt.Sprintf(`functionNode = g.addV('function').property('name', '%s').next();
+							  packageNode.addEdge('has_fn', functionNode);`, fn)
+		fullQuery += query
+	}
+	return fullQuery
 }
 
 // CreateClusterVerisonNode creates the top level cluster version node
-func CreateClusterVerisonNode(clusterVersion string) {
+// CALL THIS JUST ONCE PER RUN OF THIS SCRIPT, THAT IS HOW THIS CODE IS DESIGNED.
+func CreateClusterVerisonNode(clusterVersion string) string {
 	query := fmt.Sprintf(`
-		graph.addVertex(label, 'clusterVersion',
-						'cluter_version', '%s')
-	`, clusterVersion)
-	gremlinResponse := RunQuery(query)
-	log.Print(gremlinResponse)
+		clusterVersion = g.addV('clusterVersion').property('cluter_version', '%s').next()`, clusterVersion)
+	return query
 }
 
 // RunGroovyScript takes the path to a groovy script and runs it at the Gremlin console.
