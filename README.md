@@ -1,11 +1,16 @@
 # Proof of concept - Predict OCP cluster upgrade failures
 
-### Files:
-* service_parser.go: Parse the source code of a service (supplied as git source
+### Modules
+* service_parser: Parse the source code of a service (supplied as git source
     via command line argument) and return the functions mapped to individual
     packages in a JSON.
 
-## TODO
+* utils: Only contains a utility to extract git commit stuff for now
+* gremlin: Contains the gremlin queries for interaction with JanusGraph
 
-* Add logic to dump collected functions and packages to gremlin graph
+### TODO
+
+* Manage via modules/dep/vgo, something
+* Test the automation script
+* Enhancements to the graph schema
 * Make TODO
