@@ -2,7 +2,6 @@ package serviceparser
 
 import (
 	"encoding/json"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -17,7 +16,8 @@ var AllPkgFunc = make(map[string]map[string][]string)
 
 // ParseService parses a service and dumps all its functions to a JSON
 func ParseService(serviceName string, root string, destdir string) {
-	fmt.Println("Walking: ", root)
+	log.Print("Walking: ", root)
+	AllPkgFunc[serviceName] = make(map[string][]string)
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir.
 		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor") {
@@ -29,7 +29,6 @@ func ParseService(serviceName string, root string, destdir string) {
 		}
 
 		fset := token.NewFileSet()
-		log.Print("Inside: ", path)
 		node, err := parser.ParseDir(fset,
 			path,
 			nil, parser.ParseComments)
@@ -57,7 +56,7 @@ func ParseService(serviceName string, root string, destdir string) {
 }
 
 func parseServiceAST(node ast.Node, fset *token.FileSet) []string {
-	functions := make([]string, 1)
+	var functions []string
 	ast.Inspect(node, func(n ast.Node) bool {
 
 		// Find Functions

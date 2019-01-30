@@ -32,15 +32,13 @@ func main() {
 	for idx := range services {
 		service := services[idx].Map()
 		serviceName := service["name"].String()
+		log.Print("Parsing service ", serviceName)
 		serviceDetails := service["annotations"].Map()
-		_, gitDest := filepath.Split(serviceDetails["io.openshift.build.source-location"].String())
-		serviceRoot := filepath.Join(destdir, gitDest)
-		utils.RunShell("git clone " + serviceDetails["io.openshift.build.source-location"].String() + " " + serviceRoot)
+
+		// Git clone the repo
+		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir)
 		serviceparser.ParseService(serviceName, serviceRoot, destdir)
-
 		// serviceVersion := serviceDetails["io.openshift.build.commit.id"].String()
+		break
 	}
-	// gremlin.CreateNewFunctionNode("")
-
-	// serviceparser.ParseService(os.Args[1], "/tmp/")
 }
