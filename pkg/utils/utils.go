@@ -14,7 +14,10 @@ func RunCloneShell(repo string, destdir string) string {
 	repodir = strings.Split(repodir, ".git")[0]
 
 	if _, err := os.Stat(destdir); os.IsNotExist(err) {
-		os.Mkdir(destdir, os.ModePerm)
+		errdir := os.Mkdir(destdir, os.ModePerm)
+		if errdir != nil {
+			log.Fatal(errdir)
+		}
 	}
 
 	cmdRun := exec.Command("git", "clone", repo, filepath.Join(destdir, repodir))

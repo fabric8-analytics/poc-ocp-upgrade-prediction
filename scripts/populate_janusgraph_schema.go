@@ -3,7 +3,7 @@ package scripts
 import (
 	"path/filepath"
 
-	"../pkg/gremlin"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
 )
 
 // Runs the groovy script that creates indices.

@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"../pkg/gremlin"
-	"../pkg/serviceparser"
-	"../pkg/utils"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"github.com/tidwall/gjson"
 )
 
