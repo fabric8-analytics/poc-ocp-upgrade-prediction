@@ -22,7 +22,7 @@ func RunCloneShell(repo string, destdir string) string {
 
 	if err != nil {
 		log.Print(string(stdout))
-		log.Fatal(err)
+		log.Print(err)
 	}
 
 	return filepath.Join(destdir, repodir)

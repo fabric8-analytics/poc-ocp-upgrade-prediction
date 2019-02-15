@@ -1,9 +1,9 @@
-package main
+package scripts
 
 import (
 	"path/filepath"
 
-	"./gremlin"
+	"../pkg/gremlin"
 )
 
 // Runs the groovy script that creates indices.

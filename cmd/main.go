@@ -1,18 +1,17 @@
-package main
+package cmd
 
 import (
 	"log"
 	"os"
 	"path/filepath"
 
-	"./gremlin"
-	"./serviceparser"
-	"./utils"
-	gjson "github.com/tidwall/gjson"
+	"../pkg/gremlin"
+	"../pkg/serviceparser"
+	"../pkg/utils"
+	"github.com/tidwall/gjson"
 )
 
 func main() {
-
 	if len(os.Args) < 2 {
 		log.Fatal("Usage: main servicedir [destdir]")
 	}
