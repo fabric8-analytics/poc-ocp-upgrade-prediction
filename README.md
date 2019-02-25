@@ -7,10 +7,10 @@
 
 * utils: Only contains a utility to extract git commit stuff for now
 * gremlin: Contains the gremlin queries for interaction with JanusGraph
+* ghpr
+* traceappend
 
 ### TODO
 
-* Manage via modules/dep/vgo, something
-* Test the automation script
 * Enhancements to the graph schema
 * Make TODO
