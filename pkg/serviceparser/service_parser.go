@@ -69,18 +69,25 @@ func ParseService(serviceName string, root string, destdir string) {
 	}
 }
 
-func parseImportNode(imp *ast.ImportSpec, pkg string) *importContainer {
+func parseImportNode(imp *ast.ImportSpec, pkg string) importContainer {
+	var impName string
+	if imp.Name != nil {
+		impName = imp.Name.Name
+	} else {
+		_, impName = filepath.Split(imp.Path.Value)
+	}
 	ic := importContainer{
-		LocalName:    imp.Name.Name,
+		LocalName:    impName,
 		ImportPath:   imp.Path.Value,
 		DependentPkg: pkg,
 	}
-	return &ic
+	sugarLogger.Infof("%v\n", ic)
+	return ic
 }
 
-func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, []*importContainer) {
+func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, []importContainer) {
 	var functions []string
-	var imports []*importContainer
+	var imports []importContainer
 	ast.Inspect(node, func(n ast.Node) bool {
 
 		// Find Functions
@@ -88,7 +95,6 @@ func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, 
 		case *ast.FuncDecl:
 			functions = append(functions, fnOrImp.Name.Name)
 		case *ast.ImportSpec:
-			// TODO: add the logic to get imports
 			imports = append(imports, parseImportNode(fnOrImp, pkg))
 		}
 		return true
