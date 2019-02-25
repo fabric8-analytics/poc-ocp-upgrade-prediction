@@ -1,12 +1,16 @@
 package utils
 
 import (
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"go.uber.org/zap"
 )
+
+var logger, _ = zap.NewProduction()
+var sugarLogger = logger.Sugar()
 
 // RunCloneShell runs a git clone inside a child shell and clones it as a subdir of destdir
 func RunCloneShell(repo string, destdir string) string {
@@ -16,7 +20,7 @@ func RunCloneShell(repo string, destdir string) string {
 	if _, err := os.Stat(destdir); os.IsNotExist(err) {
 		errdir := os.Mkdir(destdir, os.ModePerm)
 		if errdir != nil {
-			log.Fatal(errdir)
+			sugarLogger.Fatal(errdir)
 		}
 	}
 
@@ -24,8 +28,8 @@ func RunCloneShell(repo string, destdir string) string {
 	stdout, err := cmdRun.CombinedOutput()
 
 	if err != nil {
-		log.Print(string(stdout))
-		log.Print(err)
+		sugarLogger.Error(string(stdout))
+		sugarLogger.Error(err)
 	}
 
 	return filepath.Join(destdir, repodir)

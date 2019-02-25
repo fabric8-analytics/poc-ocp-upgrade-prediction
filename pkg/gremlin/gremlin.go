@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
+
+	"go.uber.org/zap"
 )
+
+var logger, _ = zap.NewProduction()
+var sugarLogger = logger.Sugar()
 
 // RunQuery runs the specified gremling query and returns its result.
 func RunQuery(query string) map[string]interface{} {
@@ -19,7 +23,7 @@ func RunQuery(query string) map[string]interface{} {
 	response, err := http.Post(os.Getenv("GREMLIN_REST_URL"), "application/json", bytes.NewBuffer(payloadJSON))
 
 	if err != nil {
-		log.Fatal(err)
+		sugarLogger.Fatal(err)
 	}
 
 	var result map[string]interface{}
@@ -32,7 +36,7 @@ func RunQuery(query string) map[string]interface{} {
 func ReadJSON(jsonFilepath string) string {
 	b, err := ioutil.ReadFile(jsonFilepath) // just pass the file name
 	if err != nil {
-		log.Fatal(err)
+		sugarLogger.Fatal(err)
 	}
 	return string(b)
 }
@@ -41,7 +45,7 @@ func ReadJSON(jsonFilepath string) string {
 func ReadFile(filepath string) string {
 	b, err := ioutil.ReadFile(filepath)
 	if err != nil {
-		log.Fatal(err)
+		sugarLogger.Fatal(err)
 	}
 	return string(b)
 }
@@ -88,5 +92,5 @@ func CreateClusterVerisonNode(clusterVersion string) string {
 func RunGroovyScript(scriptPath string) {
 	scriptContent := ReadFile(scriptPath)
 	gremlinResponse := RunQuery(scriptContent)
-	log.Print(gremlinResponse)
+	sugarLogger.Info(gremlinResponse)
 }

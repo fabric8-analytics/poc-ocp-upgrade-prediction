@@ -8,9 +8,13 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"log"
 	"strconv"
+
+	"go.uber.org/zap"
 )
+
+var logger, _ = zap.NewProduction()
+var sugarLogger = logger.Sugar()
 
 // AddImportToFile will be used to import G, O objects for logging.
 func AddImportToFile(file string) ([]byte, error) {
@@ -18,7 +22,7 @@ func AddImportToFile(file string) ([]byte, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)
 	if err != nil {
-		log.Println(err)
+		sugarLogger.Error(err)
 		return nil, err
 	}
 	// Add the imports
@@ -45,7 +49,7 @@ func AddImportToFile(file string) ([]byte, error) {
 	// Generate the code
 	src, err := GenerateFile(fset, f)
 	if err != nil {
-		log.Println(err)
+		sugarLogger.Error(err)
 		return nil, err
 	}
 	return src, err

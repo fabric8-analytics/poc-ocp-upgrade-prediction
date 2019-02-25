@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"log"
 	"os"
 	"path/filepath"
+
+	"go.uber.org/zap"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
@@ -11,9 +12,12 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+var logger, _ = zap.NewProduction()
+var sugarLogger = logger.Sugar()
+
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("Usage: main servicedir [destdir]")
+		sugarLogger.Fatal("Usage: main servicedir [destdir]")
 	}
 
 	servicedir := os.Args[1]
@@ -28,7 +32,7 @@ func main() {
 	clusterInfo := gremlin.ReadJSON(filepath.Join(servicedir, "cluster_version.json"))
 	services := gjson.Get(clusterInfo, "references.spec.tags").Array()
 	clusterVersion := gjson.Get(clusterInfo, "digest").String()
-	log.Print("Cluster version: ", clusterVersion)
+	sugarLogger.Infow("Cluster version is", "clusterVersion", clusterVersion)
 
 	var gremlinQuery string
 	gremlinQuery += gremlin.CreateClusterVerisonNode(clusterVersion)
@@ -36,7 +40,7 @@ func main() {
 	for idx := range services {
 		service := services[idx].Map()
 		serviceName := service["name"].String()
-		log.Print("Parsing service ", serviceName)
+		sugarLogger.Info("Parsing service ", serviceName)
 		serviceDetails := service["annotations"].Map()
 		serviceVersion := serviceDetails["io.openshift.build.commit.id"].String()
 
@@ -54,7 +58,7 @@ func addPackageFunctionNodes(serviceName string, gremlinQuery string) {
 		gremlinQuery += gremlin.CreateNewPackageNode(pkg)
 		gremlinQuery += gremlin.CreateFunctionNodes(functions)
 	}
-	log.Print("Executing gremlin query for service: ", serviceName)
+	sugarLogger.Info("Executing gremlin query for service: ", serviceName)
 	gremlinResponse := gremlin.RunQuery(gremlinQuery)
-	log.Print(gremlinResponse)
+	sugarLogger.Info(gremlinResponse)
 }

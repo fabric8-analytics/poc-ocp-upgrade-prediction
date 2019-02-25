@@ -11,6 +11,7 @@ import (
 	"github.com/tonyalaribe/todoapi/basestructure/features/todo"
 )
 
+// Routes sets up the router and mounts the routes.
 func Routes() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(
@@ -41,5 +42,5 @@ func main() {
 		sugar.Panicf("Logging err: %s\n", err.Error()) // panic if there is an error
 	}
 
-	http.ListenAndServe(":8080", router) // Note, the port is usually gotten from the environment.
+	sugar.Info(http.ListenAndServe(":8080", router)) // Note, the port is usually gotten from the environment.
 }

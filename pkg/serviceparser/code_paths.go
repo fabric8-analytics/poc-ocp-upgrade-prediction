@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/golang-collections/collections/stack"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 // CodePath represents a source code flow.
@@ -77,10 +77,12 @@ func processWrapperFunction(e *ast.FuncDecl) {
 }
 
 func main() {
+	logger, _ := zap.NewProduction()
+	sugarLogger := logger.Sugar()
 	set := token.NewFileSet()
 	packs, err := parser.ParseFile(set, "/Users/avgupta/golang/ocp-upgrade-repos/cluster-api-provider-aws/cmd/aws-actuator/main.go", nil, 0)
 	if err != nil {
-		logrus.Printf("Failed to parse package: %v", err)
+		sugarLogger.Errorf("Failed to parse package: %v", err)
 		os.Exit(1)
 	}
 

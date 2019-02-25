@@ -6,10 +6,14 @@ import (
 	"go/parser"
 	"go/token"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+
+	"go.uber.org/zap"
 )
+
+var logger, _ = zap.NewProduction()
+var sugarLogger = logger.Sugar()
 
 type importContainer struct {
 	LocalName    string `json:"local_name"`
@@ -25,7 +29,7 @@ var AllPkgImports = make(map[string]interface{})
 
 // ParseService parses a service and dumps all its functions to a JSON
 func ParseService(serviceName string, root string, destdir string) {
-	log.Print("Walking: ", root)
+	sugarLogger.Info("Walking: ", root)
 	AllPkgFunc[serviceName] = make(map[string][]string)
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir.
@@ -42,7 +46,7 @@ func ParseService(serviceName string, root string, destdir string) {
 			path,
 			nil, parser.ParseComments)
 		if err != nil {
-			log.Fatal(err)
+			sugarLogger.Fatal(err)
 		}
 
 		for pkg, ast := range node {
@@ -53,11 +57,11 @@ func ParseService(serviceName string, root string, destdir string) {
 		return nil
 	})
 	if err != nil {
-		log.Fatal(err)
+		sugarLogger.Fatal(err)
 	}
 	packageJSON, err := json.Marshal(AllPkgFunc[serviceName])
 	if err != nil {
-		log.Fatal(err)
+		sugarLogger.Fatal(err)
 	}
 	err = ioutil.WriteFile(filepath.Join(destdir, serviceName+".json"), packageJSON, 0644)
 	if err != nil {
