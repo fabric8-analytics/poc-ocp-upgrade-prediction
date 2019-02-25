@@ -13,7 +13,7 @@ import (
 )
 
 // AddImportToFile will be used to import G, O objects for logging.
-func AddImportToFile(file string) ([]byte, error){
+func AddImportToFile(file string) ([]byte, error) {
 	// Create the AST by parsing src
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)

@@ -11,8 +11,17 @@ import (
 	"path/filepath"
 )
 
+type importContainer struct {
+	LocalName    string `json:"local_name"`
+	ImportPath   string `json:"import_path"`
+	DependentPkg string `json:"dependent_pkg"`
+}
+
 // AllPkgFunc variable contains all the services mapped to their corresponding functions.
 var AllPkgFunc = make(map[string]map[string][]string)
+
+// AllPkgImports contains all the external dependencies.
+var AllPkgImports = make(map[string]interface{})
 
 // ParseService parses a service and dumps all its functions to a JSON
 func ParseService(serviceName string, root string, destdir string) {
@@ -37,8 +46,9 @@ func ParseService(serviceName string, root string, destdir string) {
 		}
 
 		for pkg, ast := range node {
-			pkgFunctions := parseServiceAST(ast, fset)
+			pkgFunctions, pkgImports := parseServiceAST(ast, fset, pkg)
 			AllPkgFunc[serviceName][pkg] = pkgFunctions
+			AllPkgImports[serviceName] = pkgImports
 		}
 		return nil
 	})
@@ -55,18 +65,30 @@ func ParseService(serviceName string, root string, destdir string) {
 	}
 }
 
-func parseServiceAST(node ast.Node, fset *token.FileSet) []string {
+func parseImportNode(imp *ast.ImportSpec, pkg string) *importContainer {
+	ic := importContainer{
+		LocalName:    imp.Name.Name,
+		ImportPath:   imp.Path.Value,
+		DependentPkg: pkg,
+	}
+	return &ic
+}
+
+func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, []*importContainer) {
 	var functions []string
+	var imports []*importContainer
 	ast.Inspect(node, func(n ast.Node) bool {
 
 		// Find Functions
-		fn, ok := n.(*ast.FuncDecl)
-		if ok {
-			functions = append(functions, fn.Name.Name)
-			return true
+		switch fnOrImp := n.(type) {
+		case *ast.FuncDecl:
+			functions = append(functions, fnOrImp.Name.Name)
+		case *ast.ImportSpec:
+			// TODO: add the logic to get imports
+			imports = append(imports, parseImportNode(fnOrImp, pkg))
 		}
 		return true
 	})
 
-	return functions
+	return functions, imports
 }
