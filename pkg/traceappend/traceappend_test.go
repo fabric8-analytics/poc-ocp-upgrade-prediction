@@ -23,7 +23,6 @@ func TestAddImportToFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := AddImportToFile(tt.args.file)
-			t.Log(string(got))
 			if got == nil {
 				t.Errorf("AddImportToFile() got nil")
 			}
