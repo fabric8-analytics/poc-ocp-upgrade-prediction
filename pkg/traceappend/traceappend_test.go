@@ -4,27 +4,33 @@ import (
 	"testing"
 )
 
-func TestAddImportToFile(t *testing.T) {
+func TestAppendExpr(t *testing.T) {
 	type args struct {
 		file string
 	}
+	//err := utils.CopyFile("./testdata/testexprappend.go", "./testdata/testexprappend_bkp.go")
+	//if err != nil {
+	//	t.Errorf("%v\n", err)
+	//}
 	tests := []struct {
-		name string
-		args args
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
 	}{
 		{
-			"Append import for ast",
-			args{file: "testdata/test.go"},
+			name: "Test expression append",
+			args: args{
+				file: "./testdata/testexprappend_bkp.go",
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AddImportToFile(tt.args.file)
-			if got == nil {
-				t.Errorf("AddImportToFile() got nil")
-			}
+			_, err := AppendExpr(tt.args.file)
 			if err != nil {
-				t.Errorf("%v\n", err)
+				t.Errorf("AppendExpr() error = %v", err)
+				return
 			}
 		})
 	}
