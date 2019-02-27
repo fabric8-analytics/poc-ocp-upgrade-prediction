@@ -94,3 +94,9 @@ func RunGroovyScript(scriptPath string) {
 	gremlinResponse := RunQuery(scriptContent)
 	sugarLogger.Info(gremlinResponse)
 }
+
+// CreateDependencyNode creates the nodes that contain the external dependency information for the
+// service and connects it to the packages as well as the functions directly.
+func CreateDependencyNode(dependency string, pkg string, fnList []string) {
+
+}

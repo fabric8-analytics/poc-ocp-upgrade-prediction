@@ -49,11 +49,11 @@ func main() {
 		// Git clone the repo
 		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir)
 		serviceparser.ParseService(serviceName, serviceRoot, destdir)
-		addPackageFunctionNodes(serviceName, gremlinQuery)
+		addPackageFunctionNodesToGraph(serviceName, gremlinQuery)
 	}
 }
 
-func addPackageFunctionNodes(serviceName string, gremlinQuery string) {
+func addPackageFunctionNodesToGraph(serviceName string, gremlinQuery string) {
 	for pkg, functions := range serviceparser.AllPkgFunc[serviceName] {
 		gremlinQuery += gremlin.CreateNewPackageNode(pkg)
 		gremlinQuery += gremlin.CreateFunctionNodes(functions)

@@ -3,12 +3,9 @@ package serviceparser
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
-	"os"
+	"strings"
 
 	"github.com/golang-collections/collections/stack"
-	"go.uber.org/zap"
 )
 
 // CodePath represents a source code flow.
@@ -16,15 +13,7 @@ type CodePath struct {
 	From     string `json:"from"`
 	To       string `json:"to"`
 	PathType string `json:"type"`
-}
-
-// Allpaths contains all the identified compile time flows.
-var Allpaths map[string][]CodePath
-
-// parseTreePaths extracts all the compile time paths from the ast.
-func (cp *CodePath) parseTreePaths(node *ast.Node) CodePath {
-	paths := CodePath{From: "", To: "", PathType: "compile"}
-	return paths
+	Selector string `json:"selector"`
 }
 
 func processCallExpression(expr *ast.CallExpr, fnStack *stack.Stack) {
@@ -33,11 +22,19 @@ func processCallExpression(expr *ast.CallExpr, fnStack *stack.Stack) {
 
 func processSelectorExpr(expr *ast.SelectorExpr, fnStack *stack.Stack) {
 	parseExpressionStmt(&ast.ExprStmt{X: expr.X}, fnStack)
-	fnStack.Push(expr.Sel.Name)
+	processIdentifier(expr.Sel, fnStack)
 }
 
 func processIdentifier(expr *ast.Ident, fnStack *stack.Stack) {
-	fnStack.Push(expr.Name)
+	//suf := ""
+	//if expr.Obj != nil && expr.Obj.Kind == 5 {
+	//	suf = "()"
+	//}
+	idN := expr.Name
+	//if suf != "" {
+	//	idN = idN + suf
+	//}
+	fnStack.Push(idN)
 }
 
 func parseExpressionStmt(expr *ast.ExprStmt, fnStack *stack.Stack) {
@@ -51,42 +48,42 @@ func parseExpressionStmt(expr *ast.ExprStmt, fnStack *stack.Stack) {
 	}
 }
 
-func processWrapperFunction(e *ast.FuncDecl) {
+func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath) {
 	// Save wrapper function name
 	f := e.Name.Name
 	fmt.Println("Wrapper function name: ", f)
 
 	for _, expression := range e.Body.List {
 		ast.Inspect(expression, func(n ast.Node) bool {
+			var compilePaths = *allCompilePaths
 			switch x := n.(type) {
 			case *ast.CallExpr:
 				fnStack := stack.New()
 				processCallExpression(x, fnStack)
+				fn, _ := fnStack.Pop().(string)
+				sel := ""
 				for el := fnStack.Pop(); el != nil; {
-					fmt.Printf("%v ", el)
+					selstr, _ := el.(string)
+					sel = sel + string(selstr) + " "
 					el = fnStack.Pop()
 				}
+				compilePaths = append(compilePaths, CodePath{From: f, To: fn, PathType: "compile", Selector: strings.TrimSpace(sel)})
 				fmt.Printf("\n")
 			}
+			*allCompilePaths = compilePaths
 			return true
 		})
 	}
 }
 
-func main() {
-	logger, _ := zap.NewProduction()
-	sugarLogger := logger.Sugar()
-	set := token.NewFileSet()
-	packs, err := parser.ParseFile(set, "/Users/avgupta/golang/ocp-upgrade-repos/cluster-api-provider-aws/cmd/aws-actuator/main.go", nil, 0)
-	if err != nil {
-		sugarLogger.Errorf("Failed to parse package: %v", err)
-		os.Exit(1)
-	}
+// ParseTreePaths extracts all the compile time paths from the ast.
+func ParseTreePaths(root ast.Node) []CodePath {
+	var allCompilePaths []CodePath
 
-	ast.Inspect(packs, func(n ast.Node) bool {
+	ast.Inspect(root, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.FuncDecl:
-			processWrapperFunction(x)
+			processWrapperFunction(x, &allCompilePaths)
 		}
 		return true
 	})
