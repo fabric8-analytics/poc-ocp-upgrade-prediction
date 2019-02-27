@@ -18,6 +18,9 @@ type CodePath struct {
 	PathType string `json:"type"`
 }
 
+// Allpaths contains all the identified compile time flows.
+var Allpaths map[string][]CodePath
+
 // parseTreePaths extracts all the compile time paths from the ast.
 func (cp *CodePath) parseTreePaths(node *ast.Node) CodePath {
 	paths := CodePath{From: "", To: "", PathType: "compile"}
@@ -57,23 +60,21 @@ func processWrapperFunction(e *ast.FuncDecl) {
 	f := e.Name.Name
 	fmt.Println("Wrapper function name: ", f)
 
-	fnStack := stack.New()
-
 	for _, expression := range e.Body.List {
 		ast.Inspect(expression, func(n ast.Node) bool {
 			switch x := n.(type) {
 			case *ast.CallExpr:
+				fnStack := stack.New()
 				processCallExpression(x, fnStack)
+				for el := fnStack.Pop(); el != nil; {
+					fmt.Printf("%v ", el)
+					el = fnStack.Pop()
+				}
+				fmt.Printf("\n")
 			}
 			return true
 		})
 	}
-
-	for el := fnStack.Pop(); el != nil; {
-		fmt.Printf("%v ", el)
-		el = fnStack.Pop()
-	}
-	fmt.Printf("\n")
 }
 
 func main() {
