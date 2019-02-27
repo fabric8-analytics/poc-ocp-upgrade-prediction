@@ -87,5 +87,5 @@ func ParseTreePaths(root ast.Node) []CodePath {
 		}
 		return true
 	})
-
+	return allCompilePaths
 }
