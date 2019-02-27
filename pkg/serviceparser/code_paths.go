@@ -28,22 +28,19 @@ func (cp *CodePath) parseTreePaths(node *ast.Node) CodePath {
 }
 
 func processCallExpression(expr *ast.CallExpr, fnStack *stack.Stack) {
-	// fmt.Printf("%#v\n", expr)
 	parseExpressionStmt(&ast.ExprStmt{X: expr.Fun}, fnStack)
 }
 
 func processSelectorExpr(expr *ast.SelectorExpr, fnStack *stack.Stack) {
-	// fmt.Printf("%#v\n", expr)
 	parseExpressionStmt(&ast.ExprStmt{X: expr.X}, fnStack)
 	fnStack.Push(expr.Sel.Name)
 }
 
 func processIdentifier(expr *ast.Ident, fnStack *stack.Stack) {
-	// fmt.Printf("%#v\n", expr.Name)
 	fnStack.Push(expr.Name)
 }
 
-func parseExpressionStmt(expr *ast.ExprStmt, fnStack *stack.Stack) ([]string, error) {
+func parseExpressionStmt(expr *ast.ExprStmt, fnStack *stack.Stack) {
 	switch exp := expr.X.(type) {
 	case *ast.CallExpr:
 		processCallExpression(exp, fnStack)
@@ -52,7 +49,6 @@ func parseExpressionStmt(expr *ast.ExprStmt, fnStack *stack.Stack) ([]string, er
 	case *ast.Ident:
 		processIdentifier(exp, fnStack)
 	}
-	return nil, nil
 }
 
 func processWrapperFunction(e *ast.FuncDecl) {
