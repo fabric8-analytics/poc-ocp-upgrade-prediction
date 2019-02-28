@@ -25,12 +25,16 @@ type importContainer struct {
 var AllPkgFunc = make(map[string]map[string][]string)
 
 // AllPkgImports contains all the external dependencies.
-var AllPkgImports = make(map[string]interface{})
+var AllPkgImports = make(map[string]map[string]interface{})
+
+// AllCompileTimeFlows contains all the external dependencies.
+var AllCompileTimeFlows = make(map[string]interface{})
 
 // ParseService parses a service and dumps all its functions to a JSON
 func ParseService(serviceName string, root string, destdir string) {
 	sugarLogger.Info("Walking: ", root)
 	AllPkgFunc[serviceName] = make(map[string][]string)
+	AllPkgImports[serviceName] = make(map[string]interface{})
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir.
 		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor") {
@@ -51,8 +55,9 @@ func ParseService(serviceName string, root string, destdir string) {
 
 		for pkg, ast := range node {
 			pkgFunctions, pkgImports := parseServiceAST(ast, fset, pkg)
+			AllCompileTimeFlows[pkg] = ParseTreePaths(ast)
 			AllPkgFunc[serviceName][pkg] = pkgFunctions
-			AllPkgImports[serviceName] = pkgImports
+			AllPkgImports[serviceName][pkg] = pkgImports
 		}
 		return nil
 	})
