@@ -50,6 +50,15 @@ func main() {
 		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir)
 		serviceparser.ParseService(serviceName, serviceRoot, destdir)
 		addPackageFunctionNodesToGraph(serviceName, gremlinQuery)
+
+		serviceImports := serviceparser.AllPkgImports[serviceName]
+		for _, imports := range serviceImports {
+			imported, ok := imports.([]serviceparser.ImportContainer)
+			if !ok {
+				sugarLogger.Errorf("Imports are of wrong type: %T\n", imported)
+			}
+			gremlin.CreateDependencyNodes(clusterVersion, serviceName, serviceVersion, imported)
+		}
 	}
 }
 

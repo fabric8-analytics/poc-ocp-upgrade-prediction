@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -97,6 +98,14 @@ func RunGroovyScript(scriptPath string) {
 
 // CreateDependencyNode creates the nodes that contain the external dependency information for the
 // service and connects it to the packages as well as the functions directly.
-func CreateDependencyNode(dependency string, pkg string, fnList []string) {
+func CreateDependencyNodes(clusterVersion string, serviceName string, serviceVersion string, ic []serviceparser.ImportContainer) {
+	query := fmt.Sprintf(
+		`serviceNode = g.V().hasLabel('service_version').has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
 
+	for _, imported := range ic {
+		query += fmt.Sprintf(`importNode = g.addV('dependency').property('local_name', '%s').property('importpath', '%s').next();
+				  servicenode.addEdge(importNode, 'depends_on');`, imported.LocalName, imported.ImportPath)
+	}
+
+	sugarLogger.Infof("%v\n", RunQuery(query))
 }

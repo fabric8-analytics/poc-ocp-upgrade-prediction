@@ -15,7 +15,7 @@ import (
 var logger, _ = zap.NewProduction()
 var sugarLogger = logger.Sugar()
 
-type importContainer struct {
+type ImportContainer struct {
 	LocalName    string `json:"local_name"`
 	ImportPath   string `json:"import_path"`
 	DependentPkg string `json:"dependent_pkg"`
@@ -27,14 +27,15 @@ var AllPkgFunc = make(map[string]map[string][]string)
 // AllPkgImports contains all the external dependencies.
 var AllPkgImports = make(map[string]map[string]interface{})
 
-// AllCompileTimeFlows contains all the external dependencies.
-var AllCompileTimeFlows = make(map[string]interface{})
+// AllCompileTimeFlows contains all the function calls identified at compile time.
+var AllCompileTimeFlows = make(map[string]map[string]interface{})
 
 // ParseService parses a service and dumps all its functions to a JSON
 func ParseService(serviceName string, root string, destdir string) {
 	sugarLogger.Info("Walking: ", root)
 	AllPkgFunc[serviceName] = make(map[string][]string)
 	AllPkgImports[serviceName] = make(map[string]interface{})
+	AllCompileTimeFlows[serviceName] = make(map[string]interface{})
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir.
 		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor") {
@@ -53,9 +54,9 @@ func ParseService(serviceName string, root string, destdir string) {
 			sugarLogger.Fatal(err)
 		}
 
-		for pkg, ast := range node {
-			pkgFunctions, pkgImports := parseServiceAST(ast, fset, pkg)
-			AllCompileTimeFlows[pkg] = ParseTreePaths(ast)
+		for pkg, pkgast := range node {
+			pkgFunctions, pkgImports := parseServiceAST(pkgast, fset, pkg)
+			AllCompileTimeFlows[serviceName][pkg] = ParseTreePaths(pkgast)
 			AllPkgFunc[serviceName][pkg] = pkgFunctions
 			AllPkgImports[serviceName][pkg] = pkgImports
 		}
@@ -74,14 +75,14 @@ func ParseService(serviceName string, root string, destdir string) {
 	}
 }
 
-func parseImportNode(imp *ast.ImportSpec, pkg string) importContainer {
+func parseImportNode(imp *ast.ImportSpec, pkg string) ImportContainer {
 	var impName string
 	if imp.Name != nil {
 		impName = imp.Name.Name
 	} else {
 		_, impName = filepath.Split(imp.Path.Value)
 	}
-	ic := importContainer{
+	ic := ImportContainer{
 		LocalName:    impName,
 		ImportPath:   imp.Path.Value,
 		DependentPkg: pkg,
@@ -90,9 +91,9 @@ func parseImportNode(imp *ast.ImportSpec, pkg string) importContainer {
 	return ic
 }
 
-func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, []importContainer) {
+func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, []ImportContainer) {
 	var functions []string
-	var imports []importContainer
+	var imports []ImportContainer
 	ast.Inspect(node, func(n ast.Node) bool {
 
 		// Find Functions
