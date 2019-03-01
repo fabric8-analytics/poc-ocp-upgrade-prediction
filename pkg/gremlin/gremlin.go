@@ -29,7 +29,10 @@ func RunQuery(query string) map[string]interface{} {
 
 	var result map[string]interface{}
 
-	json.NewDecoder(response.Body).Decode(&result)
+	err = json.NewDecoder(response.Body).Decode(&result)
+	if err != nil {
+		sugarLogger.Errorf("Failed to decode JSON: %v\n", err)
+	}
 	return result
 }
 
@@ -85,7 +88,7 @@ func CreateFunctionNodes(functionNames []string) string {
 // CALL THIS JUST ONCE PER RUN OF THIS SCRIPT, THAT IS HOW THIS CODE IS DESIGNED.
 func CreateClusterVerisonNode(clusterVersion string) string {
 	query := fmt.Sprintf(`
-		clusterVersion = g.addV('clusterVersion').property('cluter_version', '%s').next()`, clusterVersion)
+		clusterVersion = g.addV('clusterVersion').property('cluster_version', '%s').next()`, clusterVersion)
 	return query
 }
 
@@ -104,8 +107,13 @@ func CreateDependencyNodes(clusterVersion string, serviceName string, serviceVer
 
 	for _, imported := range ic {
 		query += fmt.Sprintf(`importNode = g.addV('dependency').property('local_name', '%s').property('importpath', '%s').next();
-				  servicenode.addEdge(importNode, 'depends_on');`, imported.LocalName, imported.ImportPath)
+				  serviceNode.addEdge('depends_on', importNode);`, imported.LocalName, imported.ImportPath)
 	}
 
 	sugarLogger.Infof("%v\n", RunQuery(query))
+}
+
+
+func createCompileTimeflows() {
+
 }
