@@ -59,7 +59,7 @@ func ReadFile(filepath string) string {
 func CreateNewServiceVersionNode(serviceName string, version string) string {
 	query := fmt.Sprintf(`
 		serviceVersion = g.addV('service_version').property('name', '%s').property('version', '%s').next();
-		clusterVersion.addEdge('contains_service_at_version', serviceVersion);`, serviceName, version)
+		clusterVersion.addEdge('contains_service', serviceVersion);`, serviceName, version)
 	return query
 }
 
@@ -103,13 +103,16 @@ func RunGroovyScript(scriptPath string) {
 // service and connects it to the packages as well as the functions directly.
 func CreateDependencyNodes(clusterVersion string, serviceName string, serviceVersion string, ic []serviceparser.ImportContainer) {
 	query := fmt.Sprintf(
-		`serviceNode = g.V().hasLabel('service_version').has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
+		`serviceNode = g.V().has('cluster_version', '%s').out().hasLabel('service_version').has('name', '%s').has('version', '%s').next();`, clusterVersion, serviceName, serviceVersion)
 
 	for _, imported := range ic {
 		query += fmt.Sprintf(`importNode = g.addV('dependency').property('local_name', '%s').property('importpath', '%s').next();
-				  serviceNode.addEdge('depends_on', importNode);`, imported.LocalName, imported.ImportPath)
+				  serviceNode.addEdge('depends_on', importNode);
+				  packageNode = g.V().hasLabel('package').has('name', '%s').next();
+				  importNode.addEdge('affects_package', packageNode);`, imported.LocalName, imported.ImportPath, imported.DependentPkg)
 	}
 
+	sugarLogger.Info(query)
 	sugarLogger.Infof("%v\n", RunQuery(query))
 }
 
