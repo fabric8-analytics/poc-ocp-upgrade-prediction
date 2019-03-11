@@ -10,10 +10,11 @@ import (
 
 // CodePath represents a source code flow.
 type CodePath struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	PathType string `json:"type"`
-	Selector string `json:"selector"`
+	From             string `json:"from"`
+	To               string `json:"to"`
+	PathType         string `json:"type"`
+	SelectorCallee   string `json:"selector_callee"`
+	ContainerPackage string `json:"container_package"`
 }
 
 func processCallExpression(expr *ast.CallExpr, fnStack *stack.Stack) {
@@ -48,7 +49,7 @@ func parseExpressionStmt(expr *ast.ExprStmt, fnStack *stack.Stack) {
 	}
 }
 
-func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath) {
+func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath, pkg string) {
 	// Save wrapper function name
 	f := e.Name.Name
 	fmt.Println("Wrapper function name: ", f)
@@ -67,7 +68,8 @@ func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath) {
 					sel = sel + string(selstr) + " "
 					el = fnStack.Pop()
 				}
-				compilePaths = append(compilePaths, CodePath{From: f, To: fn, PathType: "compile", Selector: strings.TrimSpace(sel)})
+				// The caller will never have a selector, since it's one of the functions defined in this service.
+				compilePaths = append(compilePaths, CodePath{From: f, To: fn, PathType: "compile", SelectorCallee: strings.TrimSpace(sel), ContainerPackage: pkg})
 				fmt.Printf("\n")
 			}
 			*allCompilePaths = compilePaths
@@ -77,13 +79,13 @@ func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath) {
 }
 
 // ParseTreePaths extracts all the compile time paths from the ast.
-func ParseTreePaths(root ast.Node) []CodePath {
+func ParseTreePaths(pkg string, root ast.Node) []CodePath {
 	var allCompilePaths []CodePath
 
 	ast.Inspect(root, func(n ast.Node) bool {
 		switch x := n.(type) {
 		case *ast.FuncDecl:
-			processWrapperFunction(x, &allCompilePaths)
+			processWrapperFunction(x, &allCompilePaths, pkg)
 		}
 		return true
 	})

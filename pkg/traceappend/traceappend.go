@@ -17,8 +17,8 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-var logger, _ = zap.NewDevelopment()
-var sugarLogger = logger.Sugar()
+var loggertra, _ = zap.NewDevelopment()
+var sugarLogger = loggertra.Sugar()
 
 // AddImportToFile will be used to import G, O objects for logging.
 func AddImportToFile(file string) ([]byte, error) {
@@ -48,7 +48,8 @@ func AddImportToFile(file string) ([]byte, error) {
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
 	}
-	fo.Close()
+	// Don't care for any closing errors.
+	_ = fo.Close()
 	return src, err
 }
 
@@ -63,24 +64,29 @@ func generateFile(fset *token.FileSet, file *ast.File) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// AppendExpr modifies an AST by adding an expr at the start of its body.
+// AppendExpr modifies an AST by adding an expr at the start of its body. Also adds the tracey decl to its genDecls.
 func AppendExpr(file string) ([]byte, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
 	}
-	_, deferNode := createNewNodes()
+	declNode, deferNode := createNewNodes()
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
 	}
 	count := 0
+	fset = token.NewFileSet()
+
+	declSt, _ := declNode.(*ast.DeclStmt)
+	f.Decls = append(f.Decls, declSt.Decl)
+
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		_, ok := c.Parent().(*ast.FuncDecl)
 		if ok {
 			bodyList, ok := c.Node().(*ast.BlockStmt)
 			if ok {
-				count += 1
+				count++
 				bodyList.List = append([]ast.Stmt{deferNode}, bodyList.List...)
 			}
 		}
@@ -101,6 +107,7 @@ func AppendExpr(file string) ([]byte, error) {
 		return nil, err
 	}
 
+	sugarLogger.Info(string(src))
 	return src, err
 }
 
@@ -118,7 +125,7 @@ func createNewNodes() (ast.Stmt, ast.Stmt) {
 		return declStmt, deferStmt
 	}
 
-	sugarLogger.Fatalf("Could not createNewNodes")
+	sugarLogger.Fatalf("Could not create new nodes.")
 	return nil, nil
 }
 

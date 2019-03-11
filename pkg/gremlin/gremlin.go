@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"os"
-
-	"go.uber.org/zap"
+	"path/filepath"
+	"strings"
 )
 
-var logger, _ = zap.NewProduction()
+var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 // RunQuery runs the specified gremling query and returns its result.
@@ -99,9 +100,9 @@ func RunGroovyScript(scriptPath string) {
 	sugarLogger.Info(gremlinResponse)
 }
 
-// CreateDependencyNode creates the nodes that contain the external dependency information for the
+// CreateDependencyNodes creates the nodes that contain the external dependency information for the
 // service and connects it to the packages as well as the functions directly.
-func CreateDependencyNodes(clusterVersion string, serviceName string, serviceVersion string, ic []serviceparser.ImportContainer) {
+func CreateDependencyNodes(clusterVersion, serviceName, serviceVersion string, ic []serviceparser.ImportContainer) {
 	query := fmt.Sprintf(
 		`serviceNode = g.V().has('cluster_version', '%s').out().hasLabel('service_version').has('name', '%s').has('version', '%s').next();`, clusterVersion, serviceName, serviceVersion)
 
@@ -112,11 +113,64 @@ func CreateDependencyNodes(clusterVersion string, serviceName string, serviceVer
 				  importNode.addEdge('affects_package', packageNode);`, imported.LocalName, imported.ImportPath, imported.DependentPkg)
 	}
 
-	sugarLogger.Info(query)
-	sugarLogger.Infof("%v\n", RunQuery(query))
+	sugarLogger.Debug(query)
+	sugarLogger.Debugf("%v\n", RunQuery(query))
 }
 
+// CreateCompileTimeFlows adds all the compile time code flow edges to the graph.
+func CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion string, paths map[string]interface{}) {
+	sugarLogger.Debugf("paths: %#v\n", paths)
+	//jsonPaths, err := json.Marshal(paths)
+	//if err != nil {
+	//	sugarLogger.Errorf("%v\n", err)
+	//}
+	//err = ioutil.WriteFile("compile_paths.json", jsonPaths, 0644)
+	//if err != nil {
+	//	sugarLogger.Errorf("%v\n", err)
+	//}
+	for key, pathStruct := range paths {
+		sugarLogger.Info(key)
+		//sugarLogger.Info(pathStruct)
+		pathArr, ok := pathStruct.([]serviceparser.CodePath)
+		sugarLogger.Info(pathArr)
+		if !ok {
+			sugarLogger.Fatalf("Did not get a valid codepath.")
+			os.Exit(-1)
+		}
+		for _, path := range pathArr {
+			// First find the service
+			query := fmt.Sprintf(
+				`serviceNode = g.V().has('cluster_version', '%s').out().hasLabel('service_version').has('name', '%s').has('version', '%s').next();`, clusterVersion, serviceName, serviceVersion)
+			sugarLogger.Info(path)
+			// The "From" function will always be a part of the service.
+			query = query + fmt.Sprintf(`fromFunc = g.V(serviceNode).out().hasLabel('package').has('name', '%s').out().hasLabel('function').has('name', '%s').next();`, path.ContainerPackage, path.From)
+			// If there is no selector for the called function function is most assumed to be defined in same package.
+			_, selectorName := filepath.Split(path.SelectorCallee)
 
-func createCompileTimeflows() {
+			if path.SelectorCallee == "" {
+				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().hasLabel('package').has('name', '%s').out().hasLabel('function').has('name', '%s').next();
+										 fromFunc.addEdge('compile_time_call', functionNode);`, path.ContainerPackage, path.To)
+				sugarLogger.Debug(query)
+				sugarLogger.Debugf("%v\n", RunQuery(query))
+				continue
+			}
+			// Check if selector is one of our packages by mapping it to localName.
+			if _, ok := serviceparser.AllDeclaredPackages[selectorName]; ok {
+				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().hasLabel('package').has('name', '%s').out().hasLabel('function').has('name', '%s').next();
+										  fromFunc.addEdge('compile_time_call', functionNode);`, selectorName, path.To)
+				sugarLogger.Debug(query)
+				sugarLogger.Debugf("%v\n", RunQuery(query))
+				continue
+			}
 
+			selectorParts := strings.Split(path.SelectorCallee, ".")
+			// Else create a new function node and link to external dependency
+			query += fmt.Sprintf(`functionNode = g.V().addV('function').property('name', '%s').next();
+									 importNode = g.V(serviceNode).out().hasLabel('dependency').has('local_name', '%s').next();
+									 importNode.addEdge('provides', functionNode);
+									 fromFunc.addEdge('compile_time_call', functionNode);`, path.SelectorCallee+path.To, selectorParts[len(selectorParts) - 1])
+			sugarLogger.Debug(query)
+			sugarLogger.Debugf("%v\n", RunQuery(query))
+		}
+	}
 }

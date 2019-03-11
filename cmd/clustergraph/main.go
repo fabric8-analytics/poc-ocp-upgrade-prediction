@@ -59,6 +59,7 @@ func main() {
 			}
 			gremlin.CreateDependencyNodes(clusterVersion, serviceName, serviceVersion, imported)
 		}
+		gremlin.CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion, serviceparser.AllCompileTimeFlows[serviceName])
 	}
 }
 

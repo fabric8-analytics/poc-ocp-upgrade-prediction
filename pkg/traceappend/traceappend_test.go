@@ -1,6 +1,7 @@
 package traceappend
 
 import (
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"testing"
 )
 
@@ -8,10 +9,10 @@ func TestAppendExpr(t *testing.T) {
 	type args struct {
 		file string
 	}
-	//err := utils.CopyFile("./testdata/testexprappend.go", "./testdata/testexprappend_bkp.go")
-	//if err != nil {
-	//	t.Errorf("%v\n", err)
-	//}
+	err := utils.CopyFile("./testdata/testexprappend.go", "./testdata/testexprappend_bkp.go")
+	if err != nil {
+		t.Errorf("%v\n", err)
+	}
 	tests := []struct {
 		name    string
 		args    args

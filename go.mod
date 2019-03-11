@@ -19,4 +19,5 @@ require (
 	golang.org/x/oauth2 v0.0.0-20181203162652-d668ce993890
 	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect
 	golang.org/x/tools v0.0.0-20190225234524-2dc4ef2775b8
+	sourcegraph.com/sourcegraph/go-diff v0.5.0
 )

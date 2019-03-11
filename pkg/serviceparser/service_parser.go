@@ -8,13 +8,16 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.uber.org/zap"
+	"sourcegraph.com/sourcegraph/go-diff/diff"
 )
 
 var logger, _ = zap.NewProduction()
 var sugarLogger = logger.Sugar()
 
+// ImportContainer is a type to contain the import declaration, similar to *ast.ImportSpec
 type ImportContainer struct {
 	LocalName    string `json:"local_name"`
 	ImportPath   string `json:"import_path"`
@@ -30,9 +33,13 @@ var AllPkgImports = make(map[string]map[string]interface{})
 // AllCompileTimeFlows contains all the function calls identified at compile time.
 var AllCompileTimeFlows = make(map[string]map[string]interface{})
 
+// AllDeclaredPackages contains all the packages declared in this service.
+var AllDeclaredPackages map[string]bool
+
 // ParseService parses a service and dumps all its functions to a JSON
 func ParseService(serviceName string, root string, destdir string) {
 	sugarLogger.Info("Walking: ", root)
+	AllDeclaredPackages = make(map[string]bool)
 	AllPkgFunc[serviceName] = make(map[string][]string)
 	AllPkgImports[serviceName] = make(map[string]interface{})
 	AllCompileTimeFlows[serviceName] = make(map[string]interface{})
@@ -55,8 +62,9 @@ func ParseService(serviceName string, root string, destdir string) {
 		}
 
 		for pkg, pkgast := range node {
+			AllDeclaredPackages[pkg] = true
 			pkgFunctions, pkgImports := parseServiceAST(pkgast, fset, pkg)
-			AllCompileTimeFlows[serviceName][pkg] = ParseTreePaths(pkgast)
+			AllCompileTimeFlows[serviceName][pkg] = ParseTreePaths(pkg, pkgast)
 			AllPkgFunc[serviceName][pkg] = pkgFunctions
 			AllPkgImports[serviceName][pkg] = pkgImports
 		}
@@ -83,8 +91,8 @@ func parseImportNode(imp *ast.ImportSpec, pkg string) ImportContainer {
 		_, impName = filepath.Split(imp.Path.Value)
 	}
 	ic := ImportContainer{
-		LocalName:    impName,
-		ImportPath:   imp.Path.Value,
+		LocalName:    strings.Trim(impName, "\""),
+		ImportPath:   strings.Trim(imp.Path.Value, "\""),
 		DependentPkg: pkg,
 	}
 	sugarLogger.Infof("%v\n", ic)
@@ -107,4 +115,13 @@ func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, 
 	})
 
 	return functions, imports
+}
+
+// ParseDiff parses a git commit diff set.
+func ParseDiff(diffstr string) ([]*diff.FileDiff, error) {
+	fdiff, err := diff.ParseMultiFileDiff([]byte(diffstr))
+	if err != nil {
+		return nil, err
+	}
+	return fdiff, nil
 }
