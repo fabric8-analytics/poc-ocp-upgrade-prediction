@@ -4,7 +4,6 @@ package traceappend
 
 import (
 	"bytes"
-	"errors"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -26,11 +25,9 @@ func AddImportToFile(file string) ([]byte, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)
 
-	done := astutil.AddImport(fset, f, "go/ast")
+	// This never fails, because its failure means that a module is already imported.
+	_ = astutil.AddImport(fset, f, "github.com/rootAvish/go-tracey")
 
-	if !done {
-		return nil, errors.New("Unable to add import to AST")
-	}
 	// Generate the code
 	src, err := generateFile(fset, f)
 	if err != nil {
@@ -43,7 +40,6 @@ func AddImportToFile(file string) ([]byte, error) {
 		sugarLogger.Errorf("%v\n", err)
 	}
 
-	sugarLogger.Infof(string(src))
 	_, err = fo.Write(src)
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
@@ -65,7 +61,7 @@ func generateFile(fset *token.FileSet, file *ast.File) ([]byte, error) {
 }
 
 // AppendExpr modifies an AST by adding an expr at the start of its body. Also adds the tracey decl to its genDecls.
-func AppendExpr(file string) ([]byte, error) {
+func AppendExpr(file string, patchImports bool) ([]byte, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)
 	if err != nil {
@@ -78,9 +74,11 @@ func AppendExpr(file string) ([]byte, error) {
 	count := 0
 	fset = token.NewFileSet()
 
-	declSt, _ := declNode.(*ast.DeclStmt)
-	f.Decls = append(f.Decls, declSt.Decl)
-
+	// Only add Enter, Exit again if not declared in package previously
+	if patchImports {
+		declSt, _ := declNode.(*ast.DeclStmt)
+		f.Decls = append(f.Decls, declSt.Decl)
+	}
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
 		_, ok := c.Parent().(*ast.FuncDecl)
 		if ok {
@@ -92,7 +90,7 @@ func AppendExpr(file string) ([]byte, error) {
 		}
 		return true
 	}, nil)
-	sugarLogger.Info("Total functions appended: %d\n", count)
+	sugarLogger.Infof("Total functions appended: %d\n", count)
 	// Generate the code
 	src, err := generateFile(fset, f)
 	if err != nil {
@@ -100,20 +98,12 @@ func AppendExpr(file string) ([]byte, error) {
 		return nil, err
 	}
 
-	err = writeStringToFile(file, string(src))
-
-	if err != nil {
-		sugarLogger.Error(err)
-		return nil, err
-	}
-
-	sugarLogger.Info(string(src))
 	return src, err
 }
 
 // createNewNodes creates Append statements.
 func createNewNodes() (ast.Stmt, ast.Stmt) {
-	expr, err := parser.ParseExpr("func() {var Exit, Enter = tracey.New(nil); defer Exit(Enter())}")
+	expr, err := parser.ParseExpr("func() {var Exit, Enter = tracey.New(&tracey.Options{DisableNesting: true}); defer Exit(Enter())}")
 
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)

@@ -120,14 +120,7 @@ func CreateDependencyNodes(clusterVersion, serviceName, serviceVersion string, i
 // CreateCompileTimeFlows adds all the compile time code flow edges to the graph.
 func CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion string, paths map[string]interface{}) {
 	sugarLogger.Debugf("paths: %#v\n", paths)
-	//jsonPaths, err := json.Marshal(paths)
-	//if err != nil {
-	//	sugarLogger.Errorf("%v\n", err)
-	//}
-	//err = ioutil.WriteFile("compile_paths.json", jsonPaths, 0644)
-	//if err != nil {
-	//	sugarLogger.Errorf("%v\n", err)
-	//}
+
 	for key, pathStruct := range paths {
 		sugarLogger.Info(key)
 		//sugarLogger.Info(pathStruct)
@@ -163,6 +156,7 @@ func CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion string, 
 				continue
 			}
 
+			sugarLogger.Info(path.SelectorCallee)
 			selectorParts := strings.Split(path.SelectorCallee, ".")
 			// Else create a new function node and link to external dependency
 			query += fmt.Sprintf(`functionNode = g.V().addV('function').property('name', '%s').next();
