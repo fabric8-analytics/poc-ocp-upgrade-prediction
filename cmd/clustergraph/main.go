@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/traceappend"
 	"os"
 	"path/filepath"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-var logger, _ = zap.NewProduction()
+var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 func main() {
@@ -34,8 +35,7 @@ func main() {
 	clusterVersion := gjson.Get(clusterInfo, "digest").String()
 	sugarLogger.Infow("Cluster version is", "clusterVersion", clusterVersion)
 
-	var gremlinQuery string
-	gremlinQuery += gremlin.CreateClusterVerisonNode(clusterVersion)
+	gremlin.CreateClusterVerisonNode(clusterVersion)
 
 	for idx := range services {
 		service := services[idx].Map()
@@ -44,12 +44,13 @@ func main() {
 		serviceDetails := service["annotations"].Map()
 		serviceVersion := serviceDetails["io.openshift.build.commit.id"].String()
 
-		gremlinQuery += gremlin.CreateNewServiceVersionNode(serviceName, serviceVersion)
+		gremlin.CreateNewServiceVersionNode(serviceName, serviceVersion)
 
 		// Git clone the repo
 		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir)
 		serviceparser.ParseService(serviceName, serviceRoot, destdir)
-		addPackageFunctionNodesToGraph(serviceName, gremlinQuery)
+
+		gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion)
 
 		serviceImports := serviceparser.AllPkgImports[serviceName]
 		for _, imports := range serviceImports {
@@ -60,15 +61,10 @@ func main() {
 			gremlin.CreateDependencyNodes(clusterVersion, serviceName, serviceVersion, imported)
 		}
 		gremlin.CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion, serviceparser.AllCompileTimeFlows[serviceName])
+
+		// Append markers for runtime flow deduction
+		sugarLogger.Info("Now patching source.")
+		traceappend.PatchSource(serviceRoot)
 	}
 }
 
-func addPackageFunctionNodesToGraph(serviceName string, gremlinQuery string) {
-	for pkg, functions := range serviceparser.AllPkgFunc[serviceName] {
-		gremlinQuery += gremlin.CreateNewPackageNode(pkg)
-		gremlinQuery += gremlin.CreateFunctionNodes(functions)
-	}
-	sugarLogger.Info("Executing gremlin query for service: ", serviceName)
-	gremlinResponse := gremlin.RunQuery(gremlinQuery)
-	sugarLogger.Info(gremlinResponse)
-}
