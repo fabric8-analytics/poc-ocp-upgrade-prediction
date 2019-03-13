@@ -1,0 +1,15 @@
+GOCACHE=off go test -timeout 20m -v${WHAT:+ -run="$WHAT"} ./test/e2e/
+[ 0]ENTER: /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1/register.go:28 0
+[ 0]EXIT:  /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1/register.go:28 0
+[ 0]ENTER: /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/scheme/register.go:19 0
+[ 0]ENTER: /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1/register.go:32         addKnownTypes
+[ 0]EXIT:  /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/pkg/apis/machineconfiguration.openshift.io/v1/register.go:32         addKnownTypes
+[ 0]EXIT:  /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/pkg/generated/clientset/versioned/scheme/register.go:19 0
+=== RUN   TestMCDToken
+ 10 [ 1]ENTER: /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/test/e2e/mcd_test.go:21 TestMCDToken
+ 11 [ 0]ENTER: /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/cmd/common/client_builder.go:34 NewClientBuilder
+ 12 [ 0]EXIT:  /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/cmd/common/client_builder.go:34 NewClientBuilder
+ 13 [ 0]ENTER: /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/cmd/common/client_builder.go:22 KubeClientOrDie
+ 14 [ 0]EXIT:  /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/cmd/common/client_builder.go:22 KubeClientOrDie
+ 15 [ 1]EXIT:  /Users/avgupta/golang/src/github.com/openshift/machine-config-operator/test/e2e/mcd_test.go:21 TestMCDToken
+ 16 --- PASS: TestMCDToken (3.86s)

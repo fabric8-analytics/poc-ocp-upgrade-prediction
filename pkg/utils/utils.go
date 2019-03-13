@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -93,4 +94,64 @@ func copyFileContents(src, dst string) (err error) {
 	}
 	err = out.Sync()
 	return
+}
+
+// InstallDependency installs the tracer using the correct package manager.
+func InstallDependency(manifestFileName string) {
+	pkgStr := "github.com/rootAvish/go-tracey@d6c82cd1b2fb258bcb40afadcf4b1e0538b81492"
+	var pkgManagerCommand string
+	if filepath.Ext(manifestFileName) == ".toml" {
+		// Run dep install command
+		pkgManagerCommand = "dep ensure -add " + pkgStr
+
+	} else if filepath.Ext(manifestFileName) == ".yaml" {
+		// Run glide install command
+		pkgManagerCommand = "glide get " + pkgStr
+	} else if filepath.Ext(manifestFileName) == ".json" {
+		// Run godeps install command
+		pkgManagerCommand = fmt.Sprintf("go get \"%s\";godeps save ./...;", pkgStr)
+	} else {
+		// There is no "vgo install"
+		pkgManagerCommand = ""
+	}
+
+	if pkgManagerCommand != "" {
+		cmdRun := exec.Command(pkgManagerCommand)
+		stdout, err := cmdRun.CombinedOutput()
+		if err != nil {
+			sugarLogger.Error(string(stdout))
+			sugarLogger.Error(err)
+		}
+	}
+}
+
+// ReadFileLines returns an array of strings from a file, just like python.
+func ReadFileLines(fn string) ([]string, error) {
+	var fileLines []string
+	file, err := os.Open(fn)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer file.Close()
+
+	// Start reading from the file with a reader.
+	reader := bufio.NewReader(file)
+
+	var line string
+	for {
+		line, err = reader.ReadString('\n')
+		// Process the line here.
+		fileLines = append(fileLines, line)
+		if err != nil {
+			break
+		}
+	}
+
+	if err != io.EOF {
+		sugarLogger.Errorf(" > Failed!: %v\n", err)
+	}
+
+	return fileLines, nil
 }
