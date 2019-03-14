@@ -44,7 +44,7 @@ func main() {
 		serviceDetails := service["annotations"].Map()
 		serviceVersion := serviceDetails["io.openshift.build.commit.id"].String()
 
-		gremlin.CreateNewServiceVersionNode(serviceName, serviceVersion)
+		gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
 
 		// Git clone the repo
 		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir)

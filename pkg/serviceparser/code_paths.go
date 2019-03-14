@@ -1,7 +1,6 @@
 package serviceparser
 
 import (
-	"fmt"
 	"go/ast"
 	"strings"
 
@@ -52,7 +51,7 @@ func parseExpressionStmt(expr *ast.ExprStmt, fnStack *stack.Stack) {
 func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath, pkg string) {
 	// Save wrapper function name
 	f := e.Name.Name
-	fmt.Println("Wrapper function name: ", f)
+	sugarLogger.Info("Wrapper function name: ", f)
 
 	for _, expression := range e.Body.List {
 		ast.Inspect(expression, func(n ast.Node) bool {
@@ -70,7 +69,6 @@ func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath, pkg st
 				}
 				// The caller will never have a selector, since it's one of the functions defined in this service.
 				compilePaths = append(compilePaths, CodePath{From: f, To: fn, PathType: "compile", SelectorCallee: strings.TrimSpace(sel), ContainerPackage: pkg})
-				fmt.Printf("\n")
 			}
 			*allCompilePaths = compilePaths
 			return true

@@ -57,10 +57,12 @@ func ReadFile(filepath string) string {
 
 // CreateNewServiceVersionNode creates a new service node for a codebase. DO NOT CALL THIS FUNCTION
 // WITHOUT A CLUSTER VERSION NODE IN CONTEXT
-func CreateNewServiceVersionNode(serviceName string, version string)  {
+func CreateNewServiceVersionNode(clusterVersion, serviceName, version string)  {
 	query := fmt.Sprintf(`
+		clusterVersion = g.V().hasLabel('clusterVersion').has('cluster_version', '%s').next();
 		serviceVersion = g.addV('service_version').property('name', '%s').property('version', '%s').next();
-		clusterVersion.addEdge('contains_service', serviceVersion);`, serviceName, version)
+		clusterVersion.addEdge('contains_service', serviceVersion);`, clusterVersion, serviceName, version)
+	sugarLogger.Debug(query)
 	sugarLogger.Debugf("%v\n", RunQuery(query))
 }
 
@@ -89,7 +91,7 @@ func CreateFunctionNodes(functionNames []string) string {
 
 // CreateClusterVerisonNode creates the top level cluster version node
 // CALL THIS JUST ONCE PER RUN OF THIS SCRIPT, THAT IS HOW THIS CODE IS DESIGNED.
-func CreateClusterVerisonNode(clusterVersion string) string {
+func CreateClusterVerisonNode(clusterVersion string) {
 	query := fmt.Sprintf(`
 		clusterVersion = g.addV('clusterVersion').property('cluster_version', '%s').next()`, clusterVersion)
 	sugarLogger.Debugf("%v\n", RunQuery(query))
@@ -115,7 +117,8 @@ func CreateDependencyNodes(clusterVersion, serviceName, serviceVersion string, i
 				  packageNode = g.V().hasLabel('package').has('name', '%s').next();
 				  importNode.addEdge('affects_package', packageNode);`, imported.LocalName, imported.ImportPath, imported.DependentPkg)
 
-		if idx % 10 == 0 {
+		// Running this query in batches.
+		if idx % 30 == 0 {
 			gremlinResponse := RunQuery(query)
 			sugarLogger.Debugf("%v\n", gremlinResponse)
 			query = queryBase
@@ -123,6 +126,7 @@ func CreateDependencyNodes(clusterVersion, serviceName, serviceVersion string, i
 
 	}
 
+	// Any remainders
 	if query != queryBase {
 		gremlinResponse := RunQuery(query)
 		sugarLogger.Debugf("%v\n", gremlinResponse)
@@ -183,10 +187,10 @@ func CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion string, 
 
 func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string) {
 	for pkg, functions := range serviceparser.AllPkgFunc[serviceName] {
-		gremlinQuery := NewPackageNodeQuery(pkg, serviceName, serviceVersion)
+		gremlinQuery := NewPackageNodeQuery(serviceName, serviceVersion, pkg)
 		gremlinQuery += CreateFunctionNodes(functions)
 
-		sugarLogger.Infof("Executing gremlin query for service: %s, package: %s\n", serviceName, pkg)
+		sugarLogger.Infof("Executing package node creation gremlin query for service: %s, package: %s\n", serviceName, pkg)
 		gremlinResponse := RunQuery(gremlinQuery)
 		sugarLogger.Info(gremlinResponse)
 	}
