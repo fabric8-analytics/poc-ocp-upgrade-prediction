@@ -14,6 +14,7 @@ type CodePath struct {
 	PathType         string `json:"type"`
 	SelectorCallee   string `json:"selector_callee"`
 	ContainerPackage string `json:"container_package"`
+	PathAttrs 		 map[string]string `json:"path_attrs"`
 }
 
 func processCallExpression(expr *ast.CallExpr, fnStack *stack.Stack) {
@@ -26,14 +27,7 @@ func processSelectorExpr(expr *ast.SelectorExpr, fnStack *stack.Stack) {
 }
 
 func processIdentifier(expr *ast.Ident, fnStack *stack.Stack) {
-	//suf := ""
-	//if expr.Obj != nil && expr.Obj.Kind == 5 {
-	//	suf = "()"
-	//}
 	idN := expr.Name
-	//if suf != "" {
-	//	idN = idN + suf
-	//}
 	fnStack.Push(idN)
 }
 
@@ -64,11 +58,17 @@ func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath, pkg st
 				sel := ""
 				for el := fnStack.Pop(); el != nil; {
 					selstr, _ := el.(string)
-					sel = sel + string(selstr) + " "
+					sel = sel + string(selstr) + ","
 					el = fnStack.Pop()
 				}
+				// Remove the last comma
+				sel = strings.TrimRight(sel, ",")
+				// If one of the builtins then ignore.
+				if _, ok := builtins[fn]; ok {
+					break
+				}
 				// The caller will never have a selector, since it's one of the functions defined in this service.
-				compilePaths = append(compilePaths, CodePath{From: f, To: fn, PathType: "compile", SelectorCallee: strings.TrimSpace(sel), ContainerPackage: pkg})
+				compilePaths = append(compilePaths, CodePath{From: f, To: fn, PathType: "compile", SelectorCallee: strings.Trim(sel, " ."), ContainerPackage: pkg})
 			}
 			*allCompilePaths = compilePaths
 			return true
@@ -88,4 +88,22 @@ func ParseTreePaths(pkg string, root ast.Node) []CodePath {
 		return true
 	})
 	return allCompilePaths
+}
+
+var builtins = map[string]bool{
+	"append":  true,
+	"cap":     true,
+	"close":   true,
+	"complex": true,
+	"copy":    true,
+	"delete":  true,
+	"imag":    true,
+	"len":     true,
+	"make":    true,
+	"new":     true,
+	"panic":   true,
+	"print":   true,
+	"println": true,
+	"real":    true,
+	"recover": true,
 }

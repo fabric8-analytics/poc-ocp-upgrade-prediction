@@ -36,6 +36,9 @@ var AllCompileTimeFlows = make(map[string]map[string]interface{})
 // AllDeclaredPackages contains all the packages declared in this service.
 var AllDeclaredPackages map[string]bool
 
+// FilePackageMap is a mapping that tell you which package is in which file.
+var FilePackageMap map[string]string
+
 // ParseService parses a service and dumps all its functions to a JSON
 func ParseService(serviceName string, root string, destdir string) {
 	sugarLogger.Info("Walking: ", root)
@@ -43,6 +46,7 @@ func ParseService(serviceName string, root string, destdir string) {
 	AllPkgFunc[serviceName] = make(map[string][]string)
 	AllPkgImports[serviceName] = make(map[string]interface{})
 	AllCompileTimeFlows[serviceName] = make(map[string]interface{})
+	FilePackageMap = make(map[string]string)
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir.
 		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor") {
@@ -62,6 +66,11 @@ func ParseService(serviceName string, root string, destdir string) {
 		}
 
 		for pkg, pkgast := range node {
+			pkgFiles := pkgast.Files
+			for filename := range pkgFiles {
+				// I think this will always be unique so not doing on a per-service basis.
+				FilePackageMap[filename] = pkgast.Name
+			}
 			AllDeclaredPackages[pkg] = true
 			pkgFunctions, pkgImports := parseServiceAST(pkgast, fset, pkg)
 			AllCompileTimeFlows[serviceName][pkg] = ParseTreePaths(pkg, pkgast)

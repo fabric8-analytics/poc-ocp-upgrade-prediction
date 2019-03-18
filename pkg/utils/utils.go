@@ -7,16 +7,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"go.uber.org/zap"
 )
 
-var logger, _ = zap.NewProduction()
+var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
-// RunCloneShell runs a git clone inside a child shell and clones it as a subdir of destdir
-func RunCloneShell(repo string, destdir string) string {
+// RunCloneShell runs a git clone inside a child shell and clones it as a subdir inside destdir in the workspace style
+// of go.
+func RunCloneShell(repo, destdir, branch, revision string) string {
 	_, repodir := filepath.Split(repo)
 	repodir = strings.Split(repodir, ".git")[0]
 
@@ -27,11 +29,19 @@ func RunCloneShell(repo string, destdir string) string {
 		}
 	}
 
-	cmdRun := exec.Command("git", "clone", repo, filepath.Join(destdir, repodir))
-	stdout, err := cmdRun.CombinedOutput()
+	cmdRun := exec.Command("git", "clone", repo, filepath.Join(destdir, repodir), "--branch", branch)
+	stdouterr, err := cmdRun.CombinedOutput()
 
 	if err != nil {
-		sugarLogger.Error(string(stdout))
+		sugarLogger.Error(string(stdouterr))
+		sugarLogger.Error(err)
+	}
+
+	cmdRun = exec.Command("git", "-C", filepath.Join(destdir, repodir), "checkout", revision)
+	stdouterr, err = cmdRun.CombinedOutput()
+
+	if err != nil {
+		sugarLogger.Error(string(stdouterr))
 		sugarLogger.Error(err)
 	}
 
@@ -154,4 +164,22 @@ func ReadFileLines(fn string) ([]string, error) {
 	}
 
 	return fileLines, nil
+}
+
+// From: https://stackoverflow.com/a/46202939
+func ReSubMatchMap(r *regexp.Regexp, str string) (map[string]string) {
+	match := r.FindStringSubmatch(str)
+	subMatchMap := make(map[string]string)
+	sugarLogger.Debug(match)
+	if match == nil {
+		sugarLogger.Debugf("Returning Nil.")
+		return nil
+	}
+	for i, name := range r.SubexpNames() {
+		if i != 0 {
+			subMatchMap[name] = match[i]
+		}
+	}
+
+	return subMatchMap
 }
