@@ -194,6 +194,13 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string) {
 }
 
 
-func AddRuntimePathsToGraph(runtimePaths []serviceparser.CodePath) {
+func AddRuntimePathsToGraph(clusterVersion, serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
+	for _, runtimePath := range runtimePaths {
+		// First find the service
+		query := fmt.Sprintf(
+			`serviceNode = g.V().has('cluster_version', '%s').out().has('name', '%s').has('version', '%s').next();`, clusterVersion, serviceName, serviceVersion)
 
+		query += fmt.Sprintf(`g.V(serviceNode).out().hasLabel('package').has('name', '%s')`, runtimePath.ContainerPackage)
+		// TODO
+	}
 }

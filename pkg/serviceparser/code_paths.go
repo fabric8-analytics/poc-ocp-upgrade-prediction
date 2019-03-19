@@ -14,6 +14,7 @@ type CodePath struct {
 	PathType         string `json:"type"`
 	SelectorCallee   string `json:"selector_callee"`
 	ContainerPackage string `json:"container_package"`
+	ContainerPackageCaller string `json:"container_package_caller"`
 	PathAttrs 		 map[string]string `json:"path_attrs"`
 }
 

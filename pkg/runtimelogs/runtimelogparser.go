@@ -93,6 +93,7 @@ func CreateRuntimePaths(logPath string) ([]serviceparser.CodePath){
 						},
 						SelectorCallee:"",
 						ContainerPackage: serviceparser.FilePackageMap[fnCallee.Filename],
+						ContainerPackageCaller: serviceparser.FilePackageMap[fnCallee.Filename],
 					})
 					// no need to push back.
 				} else {
@@ -106,6 +107,7 @@ func CreateRuntimePaths(logPath string) ([]serviceparser.CodePath){
 						},
 						SelectorCallee:"",
 						ContainerPackage: serviceparser.FilePackageMap[fnCallee.Filename],
+						ContainerPackageCaller: serviceparser.FilePackageMap[fnCaller.Filename],
 					})
 					// push back caller
 					callStack.Push(fnCaller)

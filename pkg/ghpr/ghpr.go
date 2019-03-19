@@ -3,6 +3,7 @@ package ghpr
 
 import (
 	"context"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -19,7 +20,7 @@ var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 // GetPRPayload uses the GHPR API to get all the data for a pull request from Github.
-func GetPRPayload(repoStr string, prId int) {
+func GetPRPayload(repoStr string, prId int, gopath string) {
 	ghPrToken := os.Getenv("GH_TOKEN")
 
 	if ghPrToken == "" {
@@ -67,4 +68,11 @@ func GetPRPayload(repoStr string, prId int) {
 			sugarLogger.Debugf("%v\n", hunk)
 		}
 	}
+
+	// Get PR details for cloning.
+	branch := pr.Head.GetRef()
+	revision := pr.Head.GetSHA()
+	ForkRepoUrl := pr.Head.Repo.GetCloneURL()
+
+	utils.RunCloneShell(ForkRepoUrl, gopath, branch, revision)
 }

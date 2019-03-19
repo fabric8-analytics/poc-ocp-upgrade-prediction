@@ -25,7 +25,7 @@ func TestRunCloneShell(t *testing.T) {
 				branch: "master",
 				revision: "287504634d7a52a605d2c7f7c46f93f281368915",
 			},
-			want: "/tmp/machine-config-operator",
+			want: "/tmp/github.com/openshift/machine-config-operator",
 		},
 	}
 	for _, tt := range tests {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,9 +20,13 @@ var sugarLogger = logger.Sugar()
 // RunCloneShell runs a git clone inside a child shell and clones it as a subdir inside destdir in the workspace style
 // of go.
 func RunCloneShell(repo, destdir, branch, revision string) string {
-	_, repodir := filepath.Split(repo)
-	repodir = strings.Split(repodir, ".git")[0]
+	repo = strings.Split(repo, ".git")[0]
 
+	clonePathUrl, err := url.Parse(repo)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+	clonePath := filepath.Join(clonePathUrl.Host, clonePathUrl.Path)
 	if _, err := os.Stat(destdir); os.IsNotExist(err) {
 		errdir := os.Mkdir(destdir, os.ModePerm)
 		if errdir != nil {
@@ -29,7 +34,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		}
 	}
 
-	cmdRun := exec.Command("git", "clone", repo, filepath.Join(destdir, repodir), "--branch", branch)
+	cmdRun := exec.Command("git", "clone", repo, filepath.Join(destdir, clonePath), "--branch", branch)
 	stdouterr, err := cmdRun.CombinedOutput()
 
 	if err != nil {
@@ -37,7 +42,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		sugarLogger.Error(err)
 	}
 
-	cmdRun = exec.Command("git", "-C", filepath.Join(destdir, repodir), "checkout", revision)
+	cmdRun = exec.Command("git", "-C", filepath.Join(destdir, clonePath), "checkout", revision)
 	stdouterr, err = cmdRun.CombinedOutput()
 
 	if err != nil {
@@ -45,7 +50,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		sugarLogger.Error(err)
 	}
 
-	return filepath.Join(destdir, repodir)
+	return filepath.Join(destdir, clonePath)
 }
 
 // CopyFile copies a file
