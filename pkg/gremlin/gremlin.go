@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
+	"go.uber.org/zap"
 )
 
 var logger, _ = zap.NewDevelopment()
@@ -57,10 +58,10 @@ func ReadFile(filepath string) string {
 
 // CreateNewServiceVersionNode creates a new service node for a codebase. DO NOT CALL THIS FUNCTION
 // WITHOUT A CLUSTER VERSION NODE IN CONTEXT
-func CreateNewServiceVersionNode(clusterVersion, serviceName, version string)  {
+func CreateNewServiceVersionNode(clusterVersion, serviceName, version string) {
 	query := fmt.Sprintf(`
-		clusterVersion = g.V().hasLabel('clusterVersion').has('cluster_version', '%s').next();
-		serviceVersion = g.addV('service_version').property('name', '%s').property('version', '%s').next();
+		clusterVersion = g.V().has('vertex_label', 'clusterVersion').has('cluster_version', '%s').next();
+		serviceVersion = g.addV('service_version').property('vertex_label', 'service_version').property('name', '%s').property('version', '%s').next();
 		clusterVersion.addEdge('contains_service', serviceVersion);`, clusterVersion, serviceName, version)
 	sugarLogger.Debug(query)
 	sugarLogger.Debugf("%v\n", RunQuery(query))
@@ -70,8 +71,8 @@ func CreateNewServiceVersionNode(clusterVersion, serviceName, version string)  {
 // to the parent service node.
 func NewPackageNodeQuery(serviceName, serviceVersion, packagename string) string {
 	query := fmt.Sprintf(`
-	serviceVersion = g.V().hasLabel('service_version').has('name', '%s').has('version', '%s').next();
-	packageNode = g.addV('package').property('name', '%s').next();
+	serviceVersion = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();
+	packageNode = g.addV('package').property('vertex_label', 'package').property('name', '%s').next();
 	serviceVersion.addEdge('contains_package', packageNode);`, serviceName, serviceVersion, packagename)
 	return query
 }
@@ -82,7 +83,7 @@ func NewPackageNodeQuery(serviceName, serviceVersion, packagename string) string
 func CreateFunctionNodes(functionNames []string) string {
 	var fullQuery string
 	for _, fn := range functionNames {
-		query := fmt.Sprintf(`functionNode = g.addV('function').property('name', '%s').next();
+		query := fmt.Sprintf(`functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').next();
 							  packageNode.addEdge('has_fn', functionNode);`, fn)
 		fullQuery += query
 	}
@@ -93,7 +94,7 @@ func CreateFunctionNodes(functionNames []string) string {
 // CALL THIS JUST ONCE PER RUN OF THIS SCRIPT, THAT IS HOW THIS CODE IS DESIGNED.
 func CreateClusterVerisonNode(clusterVersion string) {
 	query := fmt.Sprintf(`
-		clusterVersion = g.addV('clusterVersion').property('cluster_version', '%s').next()`, clusterVersion)
+		clusterVersion = g.addV('clusterVersion').property('vertex_label', 'clusterVersion').property('cluster_version', '%s').next()`, clusterVersion)
 	sugarLogger.Debugf("%v\n%v\n", query, RunQuery(query))
 }
 
@@ -106,19 +107,19 @@ func RunGroovyScript(scriptPath string) {
 
 // CreateDependencyNodes creates the nodes that contain the external dependency information for the
 // service and connects it to the packages as well as the functions directly.
-func CreateDependencyNodes(clusterVersion, serviceName, serviceVersion string, ic []serviceparser.ImportContainer) {
+func CreateDependencyNodes(serviceName, serviceVersion string, ic []serviceparser.ImportContainer) {
 	queryBase := fmt.Sprintf(
-		`serviceNode = g.V().has('cluster_version', '%s').out().hasLabel('service_version').has('name', '%s').has('version', '%s').next();`, clusterVersion, serviceName, serviceVersion)
+		`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
 
 	query := queryBase
 	for idx, imported := range ic {
-		query += fmt.Sprintf(`importNode = g.addV('dependency').property('local_name', '%s').property('importpath', '%s').next();
+		query += fmt.Sprintf(`importNode = g.addV('dependency').property('vertex_label', 'dependency').property('local_name', '%s').property('importpath', '%s').next();
 				  serviceNode.addEdge('depends_on', importNode);
-				  packageNode = g.V().hasLabel('package').has('name', '%s').next();
+				  packageNode = g.V().has('vertex_label', 'package').has('name', '%s').next();
 				  importNode.addEdge('affects_package', packageNode);`, imported.LocalName, imported.ImportPath, imported.DependentPkg)
 
 		// Running this query in batches.
-		if idx % 30 == 0 {
+		if idx%30 == 0 {
 			gremlinResponse := RunQuery(query)
 			sugarLogger.Debugf("%v\n%v\n", query, gremlinResponse)
 			query = queryBase
@@ -134,50 +135,69 @@ func CreateDependencyNodes(clusterVersion, serviceName, serviceVersion string, i
 }
 
 // CreateCompileTimeFlows adds all the compile time code flow edges to the graph.
-func CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion string, paths map[string]interface{}) {
+func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string]interface{}) {
 	for _, pathStruct := range paths {
 		pathArr, ok := pathStruct.([]serviceparser.CodePath)
 		if !ok {
 			sugarLogger.Fatalf("Did not get a valid codepath.")
 			os.Exit(-1)
 		}
-		for _, path := range pathArr {
+		batch := ""
+		for i, path := range pathArr {
 			// First find the service
 			query := fmt.Sprintf(
-				`serviceNode = g.V().has('cluster_version', '%s').out().hasLabel('service_version').has('name', '%s').has('version', '%s').next();`, clusterVersion, serviceName, serviceVersion)
+				`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
 			// The "From" function will always be a part of the service.
-			query = query + fmt.Sprintf(`fromFunc = g.V(serviceNode).out().hasLabel('package').has('name', '%s').out().hasLabel('function').has('name', '%s').next();`, path.ContainerPackage, path.From)
+			query = query + fmt.Sprintf(`fromFunc = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();`, path.ContainerPackage, path.From)
 			// If there is no selector for the called function function is most assumed to be defined in same package.
 			_, selectorName := filepath.Split(path.SelectorCallee)
 
 			if path.SelectorCallee == "" {
-				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().hasLabel('package').has('name', '%s').out().hasLabel('function').has('name', '%s').next();
+				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();
 										 fromFunc.addEdge('compile_time_call', functionNode);`, path.ContainerPackage, path.To)
-				sugarLogger.Debug(query)
-				sugarLogger.Debugf("First case: %v\n", RunQuery(query))
-				continue
-			}
-			// Check if selector is one of our packages by mapping it to localName.
-			if _, ok := serviceparser.AllDeclaredPackages[selectorName]; ok {
-				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().hasLabel('package').has('name', '%s').out().hasLabel('function').has('name', '%s').next();
+				sugarLogger.Debugf("First case: %v\n", query)
+			}else if _, ok := serviceparser.AllDeclaredPackages[selectorName]; ok {
+				// Check if selector is one of our packages by mapping it to localName.
+				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();
 										  fromFunc.addEdge('compile_time_call', functionNode);`, selectorName, path.To)
-				sugarLogger.Debug(query)
-				sugarLogger.Debugf("Second case: %v\n", RunQuery(query))
-				continue
-			}
-
-			sugarLogger.Info(path.SelectorCallee)
-			selectorParts := strings.Split(path.SelectorCallee, ",")
-			// Else create a new function node and link to external dependency
-			query += fmt.Sprintf(`functionNode = g.V().addV('function').property('name', '%s').next();
-									 importNode = g.V(serviceNode).out().hasLabel('dependency').has('local_name', '%s');
+				sugarLogger.Debugf("Second case: %v\n", query)
+			} else {
+				sugarLogger.Info(path.SelectorCallee)
+				selectorParts := strings.Split(path.SelectorCallee, ",")
+				// Else create a new function node and link to external dependency
+				query += fmt.Sprintf(`functionNode = g.V().addV('function').property('vertex_label', 'function').property('name', '%s').next();
+									 importNode = g.V(serviceNode).out().has('vertex_label', 'dependency').has('local_name', '%s');
  									 exists = importNode.hasNext();
 									 if (exists) {
 										importNode.next().addEdge('provides', functionNode);
  								     }
-									 fromFunc.addEdge('compile_time_call', functionNode);`, strings.Join(selectorParts[0:len(selectorParts) - 1], ".") + "." + path.To, selectorParts[len(selectorParts) - 1])
-			sugarLogger.Debug(query)
-			sugarLogger.Debugf("Third case: %v\n", RunQuery(query))
+									 fromFunc.addEdge('compile_time_call', functionNode);`, strings.Join(selectorParts[0:len(selectorParts)-1], ".")+"."+path.To, selectorParts[len(selectorParts)-1])
+				sugarLogger.Debugf("Third case: %v\n", query)
+			}
+
+			batch += query
+			if i % 20 == 0 {
+				gremlinResponse := RunQuery(batch)
+				hasException, err := json.Marshal(gremlinResponse)
+				if err != nil {
+					sugarLogger.Errorf("%v\n", err)
+				}
+				if strings.Contains(string(hasException), "Exception") {
+					sugarLogger.Errorf("Got exception while running query: %v\n", err)
+				}
+				batch = ""
+			}
+		}
+		if batch != "" {
+			gremlinResponse := RunQuery(batch)
+			hasException, err := json.Marshal(gremlinResponse)
+			if err != nil {
+				sugarLogger.Errorf("%v\n", err)
+			}
+			if strings.Contains(string(hasException), "Exception") {
+				sugarLogger.Errorf("Got exception while running query: %v\n", err)
+			}
+			batch = ""
 		}
 	}
 }
@@ -193,14 +213,13 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string) {
 	}
 }
 
-
-func AddRuntimePathsToGraph(clusterVersion, serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
+func AddRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
 	for _, runtimePath := range runtimePaths {
 		// First find the service
 		query := fmt.Sprintf(
-			`serviceNode = g.V().has('cluster_version', '%s').out().has('name', '%s').has('version', '%s').next();`, clusterVersion, serviceName, serviceVersion)
+			`serviceNode = g.V().has('vertex_label', 'service_version').out().has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
 
-		query += fmt.Sprintf(`g.V(serviceNode).out().hasLabel('package').has('name', '%s')`, runtimePath.ContainerPackage)
+		query += fmt.Sprintf(`g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s')`, runtimePath.ContainerPackage)
 		// TODO
 	}
 }
