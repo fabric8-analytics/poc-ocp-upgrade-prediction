@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/ghpr"
+	"io/ioutil"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -8,7 +11,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
-	"github.com/tonyalaribe/todoapi/basestructure/features/todo"
 )
 
 // Routes sets up the router and mounts the routes.
@@ -23,10 +25,42 @@ func Routes() *chi.Mux {
 	)
 
 	router.Route("/v1", func(r chi.Router) {
-		r.Mount("/api/todo", todo.Routes())
+		r.Mount("/api/prcoverage", RoutesPR())
 	})
 
 	return router
+}
+
+type PRPayload struct {
+	prID int `json:"pr_id"`
+	repoURL string `json:"repo_url"`
+}
+
+func RoutesPR() *chi.Mux {
+	router := chi.NewRouter()
+	router.Get("/", RunPRCoverage)
+	return router
+}
+
+func RunPRCoverage(w http.ResponseWriter, r *http.Request) {
+	// Read body
+	b, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	// Unmarshal
+	var msg PRPayload
+	err = json.Unmarshal(b, &msg)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	ghpr.GetPRPayload(msg.repoURL, msg.prID, "/tmp")
+	render.JSON(w, r, msg) // Return the same thing for now.
 }
 
 func main() {
