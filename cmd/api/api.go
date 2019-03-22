@@ -1,9 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/ghpr"
-	"io/ioutil"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/runtimelogs"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -12,6 +12,10 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 )
+
+var logger, _ = zap.NewProduction()
+var sugar = logger.Sugar()
+
 
 // Routes sets up the router and mounts the routes.
 func Routes() *chi.Mux {
@@ -32,8 +36,8 @@ func Routes() *chi.Mux {
 }
 
 type PRPayload struct {
-	prID int `json:"pr_id"`
-	repoURL string `json:"repo_url"`
+	prID int `json:"prID"`
+	repoURL string `json:"repoURL"`
 }
 
 func RoutesPR() *chi.Mux {
@@ -44,28 +48,21 @@ func RoutesPR() *chi.Mux {
 
 func RunPRCoverage(w http.ResponseWriter, r *http.Request) {
 	// Read body
-	b, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
+	msg := PRPayload{
+		prID: 482,
+		repoURL: "openshift/machine-config-operator/",
 	}
-
-	// Unmarshal
-	var msg PRPayload
-	err = json.Unmarshal(b, &msg)
-	if err != nil {
-		http.Error(w, err.Error(), 500)
-		return
-	}
-
-	ghpr.GetPRPayload(msg.repoURL, msg.prID, "/tmp")
+	_, _, sha := ghpr.GetPRPayload(msg.repoURL, msg.prID, "/tmp")
+	//err := ioutil.WriteFile("/tmp/e2e_log.log", runtimeLogs, 0777)
+	//if err != nil {
+	//	sugar.Errorf("%v\n", err)
+	//}
+	runtimeCodePaths := runtimelogs.CreateRuntimePaths("/tmp/e2e_log.log")
+	gremlin.AddRuntimePathsToGraph("machine-config-operator", sha, runtimeCodePaths)
 	render.JSON(w, r, msg) // Return the same thing for now.
 }
 
 func main() {
-	logger, _ := zap.NewProduction()
-	sugar := logger.Sugar()
 	router := Routes()
 
 	walkFunc := func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {

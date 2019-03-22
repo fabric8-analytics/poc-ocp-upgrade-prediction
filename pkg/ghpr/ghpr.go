@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sourcegraph.com/sourcegraph/go-diff/diff"
 	"strings"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
@@ -20,7 +21,7 @@ var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 // GetPRPayload uses the GHPR API to get all the data for a pull request from Github.
-func GetPRPayload(repoStr string, prId int, gopath string) {
+func GetPRPayload(repoStr string, prId int, gopath string) ([]*diff.FileDiff, []byte, string){
 	ghPrToken := os.Getenv("GH_TOKEN")
 
 	if ghPrToken == "" {
@@ -56,23 +57,32 @@ func GetPRPayload(repoStr string, prId int, gopath string) {
 		sugarLogger.Errorf("Unable to parse diff, got error: %v\n", err)
 	}
 
-	for _, fileDiff := range fileDiffs {
-		if !strings.HasSuffix(fileDiff.OrigName, ".go") {
-			sugarLogger.Debugf("Not processing non go source %s\n", fileDiff.OrigName)
-			continue
-		}
-		hunks := fileDiff.Hunks
-
-		for _, hunk := range hunks {
-			// Do something with the fileDiffs.
-			sugarLogger.Debugf("%v\n", hunk)
-		}
-	}
+	//for _, fileDiff := range fileDiffs {
+	//	if !strings.HasSuffix(fileDiff.OrigName, ".go") {
+	//		sugarLogger.Debugf("Not processing non go source %s\n", fileDiff.OrigName)
+	//		continue
+	//	}
+	//	hunks := fileDiff.Hunks
+	//
+	//	for _, hunk := range hunks {
+	//		// Do something with the fileDiffs.
+	//		sugarLogger.Debugf("%v\n", hunk)
+	//	}
+	//}
 
 	// Get PR details for cloning.
-	branch := pr.Head.GetRef()
-	revision := pr.Head.GetSHA()
+	branchFork := pr.Head.GetRef()
+	revisionFork := pr.Head.GetSHA()
 	ForkRepoUrl := pr.Head.Repo.GetCloneURL()
 
-	utils.RunCloneShell(ForkRepoUrl, gopath, branch, revision)
+	//branchBase := pr.Base.GetRef()
+	//revisionBase := pr.Base.GetSHA()
+	//RepoBaseURL := pr.Base.Repo.GetCloneURL()
+
+	_ = utils.RunCloneShell(ForkRepoUrl, gopath, branchFork, revisionFork)
+	//utils.RunCloneShell(RepoBaseURL, filepath.Join(gopath, revisionBase), branchBase, revisionBase)
+	//runtimelog := runtimelogs.RunE2ETestsInGoPath(clonedTo, gopath)
+
+	// return the diffs and end to end test results.
+	return fileDiffs, []byte(""), revisionFork
 }

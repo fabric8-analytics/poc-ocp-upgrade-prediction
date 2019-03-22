@@ -26,7 +26,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
 	}
-	clonePath := filepath.Join(clonePathUrl.Host, clonePathUrl.Path)
+	clonePath := filepath.Join(destdir, "src", clonePathUrl.Host, clonePathUrl.Path)
 	if _, err := os.Stat(destdir); os.IsNotExist(err) {
 		errdir := os.Mkdir(destdir, os.ModePerm)
 		if errdir != nil {
@@ -34,7 +34,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		}
 	}
 
-	cmdRun := exec.Command("git", "clone", repo, filepath.Join(destdir, clonePath), "--branch", branch)
+	cmdRun := exec.Command("git", "clone", repo, clonePath, "--branch", branch)
 	stdouterr, err := cmdRun.CombinedOutput()
 
 	if err != nil {
@@ -42,7 +42,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		sugarLogger.Error(err)
 	}
 
-	cmdRun = exec.Command("git", "-C", filepath.Join(destdir, clonePath), "checkout", revision)
+	cmdRun = exec.Command("git", "-C", clonePath, "checkout", revision)
 	stdouterr, err = cmdRun.CombinedOutput()
 
 	if err != nil {
@@ -50,7 +50,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		sugarLogger.Error(err)
 	}
 
-	return filepath.Join(destdir, clonePath)
+	return filepath.Join(clonePath)
 }
 
 // CopyFile copies a file

@@ -1,11 +1,9 @@
 package serviceparser
 
 import (
-	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,14 +80,14 @@ func ParseService(serviceName string, root string, destdir string) {
 	if err != nil {
 		sugarLogger.Fatal(err)
 	}
-	packageJSON, err := json.Marshal(AllPkgFunc[serviceName])
-	if err != nil {
-		sugarLogger.Fatal(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(destdir, serviceName+".json"), packageJSON, 0644)
-	if err != nil {
-		panic(err)
-	}
+	//packageJSON, err := json.Marshal(AllPkgFunc[serviceName])
+	//if err != nil {
+	//	sugarLogger.Fatal(err)
+	//}
+	//err = ioutil.WriteFile(filepath.Join(destdir, serviceName+".json"), packageJSON, 0644)
+	//if err != nil {
+	//	panic(err)
+	//}
 }
 
 func parseImportNode(imp *ast.ImportSpec, pkg string) ImportContainer {

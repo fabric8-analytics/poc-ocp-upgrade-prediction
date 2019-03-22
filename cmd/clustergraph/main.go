@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/traceappend"
-	"os"
+	"flag"
+	"fmt"
 	"path/filepath"
 
 	"go.uber.org/zap"
@@ -17,20 +17,13 @@ var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 func main() {
-	if len(os.Args) < 2 {
-		sugarLogger.Fatal("Usage: main servicedir [destdir]")
-	}
+	servicedir := flag.String("servicedir", "", "The path to folder that contains the cluster_version.json file.")
+	destdir := flag.String("destdir", "", "A folder where we can clone the repos of the service for analysis")
 
-	servicedir := os.Args[1]
-	var destdir string
+	flag.Parse()
 
-	if len(os.Args) > 2 {
-		destdir = os.Args[2]
-	} else {
-		destdir = os.Args[1]
-	}
-
-	clusterInfo := gremlin.ReadJSON(filepath.Join(servicedir, "cluster_version.json"))
+	fmt.Println(servicedir)
+	clusterInfo := gremlin.ReadJSON(filepath.Join(*servicedir, "cluster_version.json"))
 	services := gjson.Get(clusterInfo, "references.spec.tags").Array()
 	clusterVersion := gjson.Get(clusterInfo, "digest").String()
 	sugarLogger.Infow("Cluster version is", "clusterVersion", clusterVersion)
@@ -47,9 +40,9 @@ func main() {
 		gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
 
 		// Git clone the repo
-		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir,
+		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), *destdir,
 			serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
-		serviceparser.ParseService(serviceName, serviceRoot, destdir)
+		serviceparser.ParseService(serviceName, serviceRoot, *destdir)
 
 		gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion)
 
@@ -59,13 +52,12 @@ func main() {
 			if !ok {
 				sugarLogger.Errorf("Imports are of wrong type: %T\n", imported)
 			}
-			gremlin.CreateDependencyNodes(clusterVersion, serviceName, serviceVersion, imported)
+			gremlin.CreateDependencyNodes(serviceName, serviceVersion, imported)
 		}
-		gremlin.CreateCompileTimeFlows(clusterVersion, serviceName, serviceVersion, serviceparser.AllCompileTimeFlows[serviceName])
+		gremlin.CreateCompileTimeFlows(serviceName, serviceVersion, serviceparser.AllCompileTimeFlows[serviceName])
 
 		// Append markers for runtime flow deduction
 		sugarLogger.Info("Now patching source.")
-		traceappend.PatchSource(serviceRoot)
+		// traceappend.PatchSource(serviceRoot)
 	}
 }
-

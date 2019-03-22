@@ -80,6 +80,7 @@ func CreateRuntimePaths(logPath string) ([]serviceparser.CodePath){
 				callStack.Push(&logEntry)
 			} else {
 				fnCallee, _ := callStack.Pop().(*RuntimeLogEntry)
+				slogger.Debugf("Callee: %v\n", fnCallee.Funcname)
 				fnCaller, _ := callStack.Pop().(*RuntimeLogEntry)
 
 				if fnCaller == nil {
@@ -98,6 +99,8 @@ func CreateRuntimePaths(logPath string) ([]serviceparser.CodePath){
 					// no need to push back.
 				} else {
 					// real path
+					slogger.Debugf("Caller: %v\n", fnCaller.Funcname)
+
 					runtimePaths = append(runtimePaths, serviceparser.CodePath{
 						From: fnCaller.Funcname,
 						To: fnCallee.Funcname,
