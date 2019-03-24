@@ -221,10 +221,17 @@ func AddRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []s
 	sugarLogger.Debugf("%v\n", runtimePaths)
 	for _, runtimePath := range runtimePaths {
 		// First find the service
-		query := fmt.Sprintf(
-			`serviceNode = g.V().has('vertex_label', 'service_version').out().has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
-
-		query += fmt.Sprintf(`g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s')`, runtimePath.ContainerPackage)
+		sugarLogger.Debugf("%v\n", runtimePath)
 		// TODO
 	}
+}
+
+func GetTouchPointCoverage(touchpoints *serviceparser.TouchPoints) string {
+	var response map[string]string
+	responseJson, err := json.Marshal(response)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+	// TODO
+	return string(responseJson)
 }

@@ -1,10 +1,14 @@
 package main
 
 import (
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/ghpr"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/runtimelogs"
-	"net/http"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
+
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/ghpr"
 
 	"go.uber.org/zap"
 
@@ -15,7 +19,6 @@ import (
 
 var logger, _ = zap.NewProduction()
 var sugar = logger.Sugar()
-
 
 // Routes sets up the router and mounts the routes.
 func Routes() *chi.Mux {
@@ -36,8 +39,8 @@ func Routes() *chi.Mux {
 }
 
 type PRPayload struct {
-	prID int `json:"prID"`
-	repoURL string `json:"repoURL"`
+	prID    int    `json:"pr_id"`
+	repoURL string `json:"repo_url"`
 }
 
 func RoutesPR() *chi.Mux {
@@ -49,17 +52,24 @@ func RoutesPR() *chi.Mux {
 func RunPRCoverage(w http.ResponseWriter, r *http.Request) {
 	// Read body
 	msg := PRPayload{
-		prID: 482,
+		prID:    482,
 		repoURL: "openshift/machine-config-operator/",
 	}
-	_, _, sha := ghpr.GetPRPayload(msg.repoURL, msg.prID, "/tmp")
-	//err := ioutil.WriteFile("/tmp/e2e_log.log", runtimeLogs, 0777)
-	//if err != nil {
-	//	sugar.Errorf("%v\n", err)
-	//}
-	runtimeCodePaths := runtimelogs.CreateRuntimePaths("/tmp/e2e_log.log")
-	gremlin.AddRuntimePathsToGraph("machine-config-operator", sha, runtimeCodePaths)
-	render.JSON(w, r, msg) // Return the same thing for now.
+	hunks, branchDetails, clonePath := ghpr.GetPRPayload(msg.repoURL, msg.prID, "/tmp")
+
+	// Run the E2E tests on the cloned fork and write results to file.
+	logFileE2E := runtimelogs.RunE2ETestsInGoPath(clonePath, "/tmp")
+	ioutil.WriteFile("/tmp/e2e_log.txt", logFileE2E, 0644)
+
+	// Parse the file to generate condepaths and add the corresponding results to graph.
+	// TODO: Map service name from git path back to name
+	gremlin.AddRuntimePathsToGraph("machine-config-operator",
+		branchDetails[0].Revision, runtimelogs.CreateRuntimePaths("/tmp/e2e_log.txt"))
+
+	touchPoints = serviceparser.GetTouchPointsOfPR(hunks, branchDetails)
+	response := gremlin.GetTouchPointCoverage(touchPoints)
+
+	render.JSON(w, r, response) // Return the same thing for now.
 }
 
 func main() {

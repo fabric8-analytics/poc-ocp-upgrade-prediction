@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
+
 	gdf "sourcegraph.com/sourcegraph/go-diff/diff"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
@@ -20,15 +22,8 @@ import (
 var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
-// MetaRepo contains all the fields that are required to clone something.
-type MetaRepo struct {
-	branch   string
-	revision string
-	URL      string
-}
-
 // GetPRPayload uses the GHPR API to get all the data for a pull request from Github.
-func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []MetaRepo) {
+func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []serviceparser.MetaRepo, string) {
 	ghPrToken := os.Getenv("GH_TOKEN")
 
 	if ghPrToken == "" {
@@ -75,18 +70,20 @@ func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []Met
 	}
 
 	// Get PR details for cloning.
-	fork := MetaRepo{
-		branch:   pr.Head.GetRef(),
-		revision: pr.Head.GetSHA(),
+	fork := serviceparser.MetaRepo{
+		Branch:   pr.Head.GetRef(),
+		Revision: pr.Head.GetSHA(),
 		URL:      pr.Head.Repo.GetCloneURL(),
 	}
 
-	upstream := MetaRepo{
-		branch:   pr.Base.GetRef(),
-		revision: pr.Base.GetSHA(),
+	upstream := serviceparser.MetaRepo{
+		Branch:   pr.Base.GetRef(),
+		Revision: pr.Base.GetSHA(),
 		URL:      pr.Base.Repo.GetCloneURL(),
 	}
 
+	// Clone the fork
+	clonePath := utils.RunCloneShell(fork.URL, gopath, fork.Branch, fork.Revision)
 	// return the diffs and PR details.
-	return allHunks, []MetaRepo{fork, upstream}
+	return allHunks, []serviceparser.MetaRepo{fork, upstream}, clonePath
 }
