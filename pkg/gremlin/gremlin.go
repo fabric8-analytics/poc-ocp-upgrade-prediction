@@ -153,38 +153,32 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 			lastSelectorName := selectorParts[len(selectorParts)-1]
 
 			if path.SelectorCallee == "" {
-				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();
-										 fromFunc.addEdge('compile_time_call', functionNode);`, path.ContainerPackage, path.To)
+				query += fmt.Sprintf(`functionNodeExists = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
+										if (functionNodeExists.hasNext()) {
+											functionNode = functionNodeExists.next();
+											fromFunc.addEdge('compile_time_call', functionNode);
+										}\n`, path.ContainerPackage, path.To)
 				sugarLogger.Debugf("First case: %v\n", query)
-				gremlinResponse := RunQuery(query)
-				sugarLogger.Debugf("%v\n", gremlinResponse)
-				hasException, err := json.Marshal(gremlinResponse)
-				if err != nil {
-					sugarLogger.Errorf("%v\n", err)
-				}
-				if strings.Contains(string(hasException), "Exception") {
-					sugarLogger.Errorf("Got exception while running query: %v\n", err)
-					os.Exit(0)
-				}
-
 			} else if _, ok := serviceparser.AllDeclaredPackages[path.SelectorCallee]; ok {
 				// Check if selector is one of our packages by mapping it to localName.
-				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();
-											  fromFunc.addEdge('compile_time_call', functionNode);`, lastSelectorName, path.To)
+				query += fmt.Sprintf(`functionNodeExists = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
+												if (functionNodeExists.hasNext()) {
+													functionNode = functionNodeExists.next();
+													fromFunc.addEdge('compile_time_call', functionNode);
+												}\n`, lastSelectorName, path.To)
 				sugarLogger.Debugf("Second case: %v\n", query)
 			} else {
 				sugarLogger.Info(path.SelectorCallee)
 				// Else create a new function node and link to external dependency
-				query += fmt.Sprintf(`functionNode = g.V().addV('function').property('vertex_label', 'function').property('name', '%s').next();
-										 importNode = g.V(serviceNode).out().has('vertex_label', 'dependency').has('local_name', '%s');
-										 exists = importNode.hasNext();
-										 if (exists) {
+				query += fmt.Sprintf(`functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').next();
+											importNode = g.V(serviceNode).out().has('vertex_label', 'dependency').has('local_name', '%s');
+											exists = importNode.hasNext();
+											if (exists) {
 											importNode.next().addEdge('provides', functionNode);
-									     }
-										 fromFunc.addEdge('compile_time_call', functionNode);`, strings.Join(selectorParts[0:len(selectorParts)-1], ".")+"."+path.To, selectorParts[len(selectorParts)-1])
+											}
+											fromFunc.addEdge('compile_time_call', functionNode);`, strings.Join(selectorParts, ".")+"."+path.To, selectorParts[len(selectorParts)-1])
 				sugarLogger.Debugf("Third case: %v\n", query)
 			}
-
 			batch += query
 			if i%20 == 0 {
 				gremlinResponse := RunQuery(batch)

@@ -56,6 +56,10 @@ func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath, pkg st
 				fnStack := stack.New()
 				processCallExpression(x, fnStack)
 				fn, _ := fnStack.Pop().(string)
+				if fn == "" {
+					// Do not add empty string!
+					break
+				}
 				sel := ""
 				for el := fnStack.Pop(); el != nil; {
 					selstr, _ := el.(string)
