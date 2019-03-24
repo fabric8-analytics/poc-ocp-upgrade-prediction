@@ -12,7 +12,7 @@ import (
 	"sourcegraph.com/sourcegraph/go-diff/diff"
 )
 
-var logger, _ = zap.NewProduction()
+var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 // ImportContainer is a type to contain the import declaration, similar to *ast.ImportSpec
@@ -56,14 +56,14 @@ func ParseService(serviceName string, root string, destdir string) {
 		}
 
 		fset := token.NewFileSet()
-		node, err := parser.ParseDir(fset,
+		pkgs, err := parser.ParseDir(fset,
 			path,
 			nil, parser.ParseComments)
 		if err != nil {
 			sugarLogger.Fatal(err)
 		}
 
-		for pkg, pkgast := range node {
+		for pkg, pkgast := range pkgs {
 			pkgFiles := pkgast.Files
 			for filename := range pkgFiles {
 				// I think this will always be unique so not doing on a per-service basis.
@@ -80,14 +80,6 @@ func ParseService(serviceName string, root string, destdir string) {
 	if err != nil {
 		sugarLogger.Fatal(err)
 	}
-	//packageJSON, err := json.Marshal(AllPkgFunc[serviceName])
-	//if err != nil {
-	//	sugarLogger.Fatal(err)
-	//}
-	//err = ioutil.WriteFile(filepath.Join(destdir, serviceName+".json"), packageJSON, 0644)
-	//if err != nil {
-	//	panic(err)
-	//}
 }
 
 func parseImportNode(imp *ast.ImportSpec, pkg string) ImportContainer {
@@ -102,14 +94,15 @@ func parseImportNode(imp *ast.ImportSpec, pkg string) ImportContainer {
 		ImportPath:   strings.Trim(imp.Path.Value, "\""),
 		DependentPkg: pkg,
 	}
-	sugarLogger.Infof("%v\n", ic)
+	sugarLogger.Debugf("%v\n", ic)
 	return ic
 }
 
-func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, []ImportContainer) {
+func parseServiceAST(pkgast *ast.Package, fset *token.FileSet, pkg string) ([]string, []ImportContainer) {
 	var functions []string
 	var imports []ImportContainer
-	ast.Inspect(node, func(n ast.Node) bool {
+
+	ast.Inspect(pkgast, func(n ast.Node) bool {
 
 		// Find Functions
 		switch fnOrImp := n.(type) {
@@ -121,6 +114,30 @@ func parseServiceAST(node ast.Node, fset *token.FileSet, pkg string) ([]string, 
 		return true
 	})
 
+	var functionLit []string
+
+	for _, fileast := range pkgast.Files {
+		for _, decl := range fileast.Decls {
+			if declBody, ok := decl.(*ast.GenDecl); ok {
+				if declBody.Tok == token.VAR {
+					for _, specBody := range declBody.Specs {
+						valSpec, isvalSpec := specBody.(*ast.ValueSpec)
+						if isvalSpec {
+							sugarLogger.Debug("Found a valuespec.")
+							if len(valSpec.Values) == 0 {
+								continue
+							}
+							_, isFnLit := valSpec.Values[0].(*ast.FuncLit)
+							if isFnLit {
+								functionLit = append(functionLit, valSpec.Names[0].Name)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	functions = append(functions, functionLit...)
 	return functions, imports
 }
 
