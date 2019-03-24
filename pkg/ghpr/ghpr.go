@@ -3,12 +3,12 @@ package ghpr
 
 import (
 	"context"
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"sourcegraph.com/sourcegraph/go-diff/diff"
 	"strings"
+
+	gdf "sourcegraph.com/sourcegraph/go-diff/diff"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
 	"go.uber.org/zap"
@@ -20,8 +20,15 @@ import (
 var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
+// MetaRepo contains all the fields that are required to clone something.
+type MetaRepo struct {
+	branch   string
+	revision string
+	URL      string
+}
+
 // GetPRPayload uses the GHPR API to get all the data for a pull request from Github.
-func GetPRPayload(repoStr string, prId int, gopath string) ([]*diff.FileDiff, []byte, string){
+func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []MetaRepo) {
 	ghPrToken := os.Getenv("GH_TOKEN")
 
 	if ghPrToken == "" {
@@ -57,32 +64,29 @@ func GetPRPayload(repoStr string, prId int, gopath string) ([]*diff.FileDiff, []
 		sugarLogger.Errorf("Unable to parse diff, got error: %v\n", err)
 	}
 
-	//for _, fileDiff := range fileDiffs {
-	//	if !strings.HasSuffix(fileDiff.OrigName, ".go") {
-	//		sugarLogger.Debugf("Not processing non go source %s\n", fileDiff.OrigName)
-	//		continue
-	//	}
-	//	hunks := fileDiff.Hunks
-	//
-	//	for _, hunk := range hunks {
-	//		// Do something with the fileDiffs.
-	//		sugarLogger.Debugf("%v\n", hunk)
-	//	}
-	//}
+	var allHunks [][]*gdf.Hunk
+	for _, fileDiff := range fileDiffs {
+		if !strings.HasSuffix(fileDiff.OrigName, ".go") {
+			sugarLogger.Debugf("Not processing non go source %s\n", fileDiff.OrigName)
+			continue
+		}
+		hunks := fileDiff.Hunks
+		allHunks = append(allHunks, hunks)
+	}
 
 	// Get PR details for cloning.
-	branchFork := pr.Head.GetRef()
-	revisionFork := pr.Head.GetSHA()
-	ForkRepoUrl := pr.Head.Repo.GetCloneURL()
+	fork := MetaRepo{
+		branch:   pr.Head.GetRef(),
+		revision: pr.Head.GetSHA(),
+		URL:      pr.Head.Repo.GetCloneURL(),
+	}
 
-	//branchBase := pr.Base.GetRef()
-	//revisionBase := pr.Base.GetSHA()
-	//RepoBaseURL := pr.Base.Repo.GetCloneURL()
+	upstream := MetaRepo{
+		branch:   pr.Base.GetRef(),
+		revision: pr.Base.GetSHA(),
+		URL:      pr.Base.Repo.GetCloneURL(),
+	}
 
-	_ = utils.RunCloneShell(ForkRepoUrl, gopath, branchFork, revisionFork)
-	//utils.RunCloneShell(RepoBaseURL, filepath.Join(gopath, revisionBase), branchBase, revisionBase)
-	//runtimelog := runtimelogs.RunE2ETestsInGoPath(clonedTo, gopath)
-
-	// return the diffs and end to end test results.
-	return fileDiffs, []byte(""), revisionFork
+	// return the diffs and PR details.
+	return allHunks, []MetaRepo{fork, upstream}
 }

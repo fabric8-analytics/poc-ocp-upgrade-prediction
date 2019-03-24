@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"go.uber.org/zap"
-	"sourcegraph.com/sourcegraph/go-diff/diff"
 )
 
 var logger, _ = zap.NewDevelopment()
@@ -140,13 +139,4 @@ func parseServiceAST(pkgast *ast.Package, fset *token.FileSet, pkg string) ([]st
 	}
 	functions = append(functions, functionLit...)
 	return functions, imports
-}
-
-// ParseDiff parses a git commit diff set.
-func ParseDiff(diffstr string) ([]*diff.FileDiff, error) {
-	fdiff, err := diff.ParseMultiFileDiff([]byte(diffstr))
-	if err != nil {
-		return nil, err
-	}
-	return fdiff, nil
 }
