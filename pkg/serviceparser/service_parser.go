@@ -107,7 +107,9 @@ func parseServiceAST(pkgast *ast.Package, fset *token.FileSet, pkg string) ([]st
 		// Find Functions
 		switch fnOrImp := n.(type) {
 		case *ast.FuncDecl:
-			functions = append(functions, fnOrImp.Name.Name)
+			if fnOrImp.Name.Name != "" {
+				functions = append(functions, fnOrImp.Name.Name)
+			}
 		case *ast.ImportSpec:
 			imports = append(imports, parseImportNode(fnOrImp, pkg))
 		}
@@ -123,12 +125,11 @@ func parseServiceAST(pkgast *ast.Package, fset *token.FileSet, pkg string) ([]st
 					for _, specBody := range declBody.Specs {
 						valSpec, isvalSpec := specBody.(*ast.ValueSpec)
 						if isvalSpec {
-							sugarLogger.Debug("Found a valuespec.")
 							if len(valSpec.Values) == 0 {
 								continue
 							}
 							_, isFnLit := valSpec.Values[0].(*ast.FuncLit)
-							if isFnLit {
+							if isFnLit && valSpec.Names[0].Name != "" {
 								functionLit = append(functionLit, valSpec.Names[0].Name)
 							}
 						}

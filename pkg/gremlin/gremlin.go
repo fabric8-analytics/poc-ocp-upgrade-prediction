@@ -149,6 +149,8 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 			// The "From" function will always be a part of the service.
 			query = query + fmt.Sprintf(`fromFunc = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();`, path.ContainerPackage, path.From)
 			// If there is no selector for the called function function is most assumed to be defined in same package.
+			selectorParts := strings.Split(path.SelectorCallee, ",")
+			lastSelectorName := selectorParts[len(selectorParts)-1]
 
 			if path.SelectorCallee == "" {
 				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();
@@ -168,11 +170,10 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 			} else if _, ok := serviceparser.AllDeclaredPackages[path.SelectorCallee]; ok {
 				// Check if selector is one of our packages by mapping it to localName.
 				query += fmt.Sprintf(`functionNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();
-											  fromFunc.addEdge('compile_time_call', functionNode);`, selectorName, path.To)
+											  fromFunc.addEdge('compile_time_call', functionNode);`, lastSelectorName, path.To)
 				sugarLogger.Debugf("Second case: %v\n", query)
 			} else {
 				sugarLogger.Info(path.SelectorCallee)
-				selectorParts := strings.Split(path.SelectorCallee, ",")
 				// Else create a new function node and link to external dependency
 				query += fmt.Sprintf(`functionNode = g.V().addV('function').property('vertex_label', 'function').property('name', '%s').next();
 										 importNode = g.V(serviceNode).out().has('vertex_label', 'dependency').has('local_name', '%s');
