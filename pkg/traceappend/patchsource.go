@@ -1,9 +1,10 @@
 package traceappend
 
 import (
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"os"
 	"path/filepath"
+
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 
 	"go.uber.org/zap"
 )
@@ -59,7 +60,7 @@ func patchFile(filePath string, patchImports bool) error {
 		if err != nil {
 			return err
 		}
-		err = writeStringToFile(filePath, string(patched))
+		err = utils.WriteStringToFile(filePath, string(patched))
 
 		if err != nil {
 			return err
@@ -70,7 +71,7 @@ func patchFile(filePath string, patchImports bool) error {
 	if err != nil {
 		return err
 	}
-	err = writeStringToFile(filePath, string(patched))
+	err = utils.WriteStringToFile(filePath, string(patched))
 
 	// If err is nil, nil will be returned.
 	return err

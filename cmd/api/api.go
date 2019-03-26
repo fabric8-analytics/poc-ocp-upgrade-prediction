@@ -59,14 +59,14 @@ func RunPRCoverage(w http.ResponseWriter, r *http.Request) {
 
 	// Run the E2E tests on the cloned fork and write results to file.
 	logFileE2E := runtimelogs.RunE2ETestsInGoPath(clonePath, "/tmp")
-	ioutil.WriteFile("/tmp/e2e_log.txt", logFileE2E, 0644)
+	ioutil.WriteFile("/tmp/e2e_log.txt", []byte(logFileE2E), 0644)
 
 	// Parse the file to generate condepaths and add the corresponding results to graph.
 	// TODO: Map service name from git path back to name
 	gremlin.AddRuntimePathsToGraph("machine-config-operator",
 		branchDetails[0].Revision, runtimelogs.CreateRuntimePaths("/tmp/e2e_log.txt"))
 
-	touchPoints = serviceparser.GetTouchPointsOfPR(hunks, branchDetails)
+	touchPoints := serviceparser.GetTouchPointsOfPR(hunks, branchDetails)
 	response := gremlin.GetTouchPointCoverage(touchPoints)
 
 	render.JSON(w, r, response) // Return the same thing for now.

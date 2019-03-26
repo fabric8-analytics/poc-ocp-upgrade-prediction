@@ -42,7 +42,8 @@ func ParseDiff(diffstr string) ([]*gdf.FileDiff, error) {
 	return fdiff, nil
 }
 
-func GetTouchPointsOfPR(allHunks [][]*gdf.Hunk, branchDetails []MetaRepo) TouchPoints {
+// GetTouchPointsOfPR is used to get the functions that are affected by a certain PR.
+func GetTouchPointsOfPR(allHunks [][]*gdf.Hunk, branchDetails []MetaRepo) *TouchPoints {
 	// TODO
-	return TouchPoints{}
+	return &TouchPoints{}
 }

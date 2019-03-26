@@ -55,9 +55,6 @@ func main() {
 			gremlin.CreateDependencyNodes(serviceName, serviceVersion, imported)
 		}
 		gremlin.CreateCompileTimeFlows(serviceName, serviceVersion, serviceparser.AllCompileTimeFlows[serviceName])
-
-		// Append markers for runtime flow deduction
-		sugarLogger.Info("Now patching source.")
-		// traceappend.PatchSource(serviceRoot)
+		// This concludes the offline flow.
 	}
 }

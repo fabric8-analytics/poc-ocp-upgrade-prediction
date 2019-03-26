@@ -8,9 +8,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"io"
 	"os"
-	"strings"
 
 	"go.uber.org/zap"
 	"golang.org/x/tools/go/ast/astutil"
@@ -117,19 +115,4 @@ func createNewNodes() (ast.Stmt, ast.Stmt) {
 
 	sugarLogger.Fatalf("Could not create new nodes.")
 	return nil, nil
-}
-
-func writeStringToFile(filepath, s string) error {
-	fo, err := os.Create(filepath)
-	if err != nil {
-		return err
-	}
-	defer fo.Close()
-
-	_, err = io.Copy(fo, strings.NewReader(s))
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

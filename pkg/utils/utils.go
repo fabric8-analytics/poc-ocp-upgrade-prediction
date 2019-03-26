@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 )
@@ -171,13 +173,11 @@ func ReadFileLines(fn string) ([]string, error) {
 	return fileLines, nil
 }
 
-// From: https://stackoverflow.com/a/46202939
-func ReSubMatchMap(r *regexp.Regexp, str string) (map[string]string) {
+// ReSubMatchMap matches subgroups of a regex and returns it in a named map. From: https://stackoverflow.com/a/46202939
+func ReSubMatchMap(r *regexp.Regexp, str string) map[string]string {
 	match := r.FindStringSubmatch(str)
 	subMatchMap := make(map[string]string)
-	sugarLogger.Debug(match)
 	if match == nil {
-		sugarLogger.Debugf("Returning Nil.")
 		return nil
 	}
 	for i, name := range r.SubexpNames() {
@@ -187,4 +187,56 @@ func ReSubMatchMap(r *regexp.Regexp, str string) (map[string]string) {
 	}
 
 	return subMatchMap
+}
+
+// RunCmdWithWait runs a command us cmd.Wait()
+func RunCmdWithWait(cmd *exec.Cmd) (string, string) {
+	var stdoutBuf, stderrBuf bytes.Buffer
+	stdoutIn, _ := cmd.StdoutPipe()
+	stderrIn, _ := cmd.StderrPipe()
+
+	var errStdout, errStderr error
+	stdout := io.MultiWriter(os.Stdout, &stdoutBuf)
+	stderr := io.MultiWriter(os.Stderr, &stderrBuf)
+	err := cmd.Start()
+	if err != nil {
+		sugarLogger.Fatalf("cmd.Start() failed with '%s'\n", err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		_, errStdout = io.Copy(stdout, stdoutIn)
+		wg.Done()
+	}()
+
+	_, errStderr = io.Copy(stderr, stderrIn)
+	wg.Wait()
+
+	err = cmd.Wait()
+	if err != nil {
+		sugarLogger.Fatalf("cmd.Run() failed with %s\n", err)
+	}
+	if errStdout != nil || errStderr != nil {
+		sugarLogger.Fatal("failed to capture stdout or stderr\n")
+	}
+	outStr, errStr := string(stdoutBuf.Bytes()), string(stderrBuf.Bytes())
+	return outStr, errStr
+}
+
+// WriteStringToFile, writes string s to filepath
+func WriteStringToFile(filepath, s string) error {
+	fo, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer fo.Close()
+
+	_, err = io.Copy(fo, strings.NewReader(s))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
