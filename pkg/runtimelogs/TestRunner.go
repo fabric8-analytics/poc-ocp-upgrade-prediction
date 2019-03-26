@@ -13,7 +13,7 @@ import (
 func RunE2ETestsInGoPath(srcdir, gopath string) string {
 	cmd := exec.Command("dep", "ensure", "-v")
 	cmd.Env = make([]string, 0)
-	cmd.Env = append(cmd.Env, "GOPATH="+gopath)
+	cmd.Env = append(cmd.Env, "GOPATH="+gopath+":/private/tmp")
 	cmd.Env = append(cmd.Env, "PATH="+os.Getenv("PATH"))
 	cmd.Dir = srcdir
 
