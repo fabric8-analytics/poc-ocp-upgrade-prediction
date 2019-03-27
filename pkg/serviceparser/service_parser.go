@@ -37,7 +37,7 @@ var AllDeclaredPackages map[string]bool
 var FilePackageMap map[string]string
 
 // ParseService parses a service and dumps all its functions to a JSON
-func ParseService(serviceName string, root string, destdir string) {
+func ParseService(serviceName string, root string) {
 	sugarLogger.Info("Walking: ", root)
 	AllDeclaredPackages = make(map[string]bool)
 	AllPkgFunc[serviceName] = make(map[string][]string)

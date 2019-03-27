@@ -57,10 +57,22 @@ func ParseComponentE2ELogs(testLog []string) (map[string][]RuntimeLogEntry, erro
 }
 
 // CreateRuntimePaths creates the runtime path entries in the graph.
-func CreateRuntimePaths(logPath string) []serviceparser.CodePath {
-	fileData, err := utils.ReadFileLines(logPath)
-	if err != nil {
-		slogger.Errorf("Failed to read end to end test log, error: %v\n", err)
+func CreateRuntimePaths(logs interface{}) []serviceparser.CodePath {
+	var fileData []string
+	logFileStr, isFilePath := logs.(string)
+	if isFilePath {
+		// Can't define in := fashion becuase fileData is overridden.
+		var err error
+		fileData, err = utils.ReadFileLines(logFileStr)
+		if err != nil {
+			slogger.Errorf("Failed to read end to end test log, error: %v\n", err)
+		}
+	} else {
+		logContent, ok := logs.([]string)
+		if !ok {
+			slogger.Errorf("Log content is neither filepath nor list of strings.")
+		}
+		fileData = logContent
 	}
 	logPaths, err := ParseComponentE2ELogs(fileData)
 

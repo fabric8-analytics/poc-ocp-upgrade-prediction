@@ -1,8 +1,8 @@
 package main
 
 import (
-	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/runtimelogs"
@@ -57,14 +57,14 @@ func RunPRCoverage(w http.ResponseWriter, r *http.Request) {
 	}
 	hunks, branchDetails, clonePath := ghpr.GetPRPayload(msg.repoURL, msg.prID, "/tmp")
 
+	serviceparser.ParseService("machine-config-controller", clonePath)
 	// Run the E2E tests on the cloned fork and write results to file.
 	logFileE2E := runtimelogs.RunE2ETestsInGoPath(clonePath, "/tmp")
-	ioutil.WriteFile("/tmp/e2e_log.txt", []byte(logFileE2E), 0644)
 
 	// Parse the file to generate condepaths and add the corresponding results to graph.
 	// TODO: Map service name from git path back to name
-	gremlin.AddRuntimePathsToGraph("machine-config-operator",
-		branchDetails[0].Revision, runtimelogs.CreateRuntimePaths("/tmp/e2e_log.txt"))
+	gremlin.AddRuntimePathsToGraph("machine-config-controller",
+		branchDetails[1].Revision, runtimelogs.CreateRuntimePaths(strings.Split(logFileE2E, "\n")))
 
 	touchPoints := serviceparser.GetTouchPointsOfPR(hunks, branchDetails)
 	response := gremlin.GetTouchPointCoverage(touchPoints)

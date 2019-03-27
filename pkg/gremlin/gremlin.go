@@ -157,7 +157,8 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 										if (functionNodeExists.hasNext()) {
 											functionNode = functionNodeExists.next();
 											fromFunc.addEdge('compile_time_call', functionNode);
-										}\n`, path.ContainerPackage, path.To)
+										}
+										`, path.ContainerPackage, path.To)
 				sugarLogger.Debugf("First case: %v\n", query)
 			} else if _, ok := serviceparser.AllDeclaredPackages[path.SelectorCallee]; ok {
 				// Check if selector is one of our packages by mapping it to localName.
@@ -165,7 +166,8 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 												if (functionNodeExists.hasNext()) {
 													functionNode = functionNodeExists.next();
 													fromFunc.addEdge('compile_time_call', functionNode);
-												}\n`, lastSelectorName, path.To)
+												}
+												`, lastSelectorName, path.To)
 				sugarLogger.Debugf("Second case: %v\n", query)
 			} else {
 				sugarLogger.Info(path.SelectorCallee)
@@ -217,15 +219,38 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string) {
 	}
 }
 
+// AddRuntimePathsToGraph adds to our graph edges that represent runtime flows parsed from the end to end log.
 func AddRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
 	sugarLogger.Debugf("%v\n", runtimePaths)
-	for _, runtimePath := range runtimePaths {
-		// First find the service
-		sugarLogger.Debugf("%v\n", runtimePath)
-		// TODO
+	serviceNodeFinderQuery := fmt.Sprintf(`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
+		serviceName, serviceVersion)
+	batch := serviceNodeFinderQuery
+	for i, runtimePath := range runtimePaths {
+		batch += fmt.Sprintf(`fromNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name' ,'%s');
+		if (fromNode.hasNext()) {
+			ToNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
+			if (ToNode.hasNext()) {
+				fromNode.next().addEdge("%s", ToNode).property("testflowname", "%s");
+			}
+		}
+		`, runtimePath.ContainerPackageCaller, runtimePath.From, runtimePath.ContainerPackage, runtimePath.To, runtimePath.PathType, runtimePath.PathAttrs["TestFlowName"])
+		if (i % 10) == 0 {
+			sugarLogger.Debugf("Query: %v\n", batch)
+			gremlinResponse := RunQuery(batch)
+			sugarLogger.Debugf("%v\n", gremlinResponse)
+			batch = serviceNodeFinderQuery
+		}
+	}
+	if batch != serviceNodeFinderQuery {
+		// execute the remaining chunk
+		sugarLogger.Debugf("Query: %v\n", batch)
+		// gremlinResponse := RunQuery(batch)
+		// sugarLogger.Debugf("%v\n", gremlinResponse)
+		batch = ""
 	}
 }
 
+// GetTouchPointCoverage gives us the functions which were changed as a part of the PR.
 func GetTouchPointCoverage(touchpoints *serviceparser.TouchPoints) string {
 	var response map[string]string
 	responseJson, err := json.Marshal(response)
