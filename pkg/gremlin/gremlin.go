@@ -244,8 +244,8 @@ func AddRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []s
 	if batch != serviceNodeFinderQuery {
 		// execute the remaining chunk
 		sugarLogger.Debugf("Query: %v\n", batch)
-		// gremlinResponse := RunQuery(batch)
-		// sugarLogger.Debugf("%v\n", gremlinResponse)
+		gremlinResponse := RunQuery(batch)
+		sugarLogger.Debugf("%v\n", gremlinResponse)
 		batch = ""
 	}
 }
