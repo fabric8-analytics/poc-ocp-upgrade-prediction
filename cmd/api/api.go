@@ -1,63 +1,50 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/ghpr"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/runtimelogs"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
-
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/ghpr"
-
 	"go.uber.org/zap"
-
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	"github.com/go-chi/render"
 )
 
-var logger, _ = zap.NewProduction()
+var logger, _ = zap.NewDevelopment()
 var sugar = logger.Sugar()
 
-// Routes sets up the router and mounts the routes.
-func Routes() *chi.Mux {
-	router := chi.NewRouter()
-	router.Use(
-		render.SetContentType(render.ContentTypeJSON), // Set content-Type headers as application/json
-		middleware.Logger,          // Log API request calls
-		middleware.DefaultCompress, // Compress results, mostly gzipping assets and json
-		middleware.RedirectSlashes, // Redirect slashes to no slash URL versions
-		middleware.Recoverer,       // Recover from panics without crashing server
-	)
-
-	router.Route("/v1", func(r chi.Router) {
-		r.Mount("/api/prcoverage", RoutesPR())
-	})
-
-	return router
-}
-
 type PRPayload struct {
-	prID    int    `json:"pr_id"`
-	repoURL string `json:"repo_url"`
+	PrID    int    `json:"pr_id"`
+	RepoURL string `json:"repo_url"`
 }
 
-func RoutesPR() *chi.Mux {
-	router := chi.NewRouter()
-	router.Get("/", RunPRCoverage)
-	return router
-}
-
-func RunPRCoverage(w http.ResponseWriter, r *http.Request) {
+func processPR(w http.ResponseWriter, r *http.Request) {
 	// Read body
-	msg := PRPayload{
-		prID:    482,
-		repoURL: "openshift/machine-config-operator/",
+	b, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
 	}
-	hunks, branchDetails, clonePath := ghpr.GetPRPayload(msg.repoURL, msg.prID, "/tmp")
 
+	// Unmarshal
+	var pr PRPayload
+	err = json.Unmarshal(b, &pr)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	// Get the PR hunks, details of base and fork and the clonePath where the fork has been cloned.
+	hunks, branchDetails, clonePath := ghpr.GetPRPayload(pr.RepoURL, pr.PrID, "/tmp")
+
+	// ParseService called to parse and populate all the arrays in serviceparser.
 	serviceparser.ParseService("machine-config-controller", clonePath)
+
 	// Run the E2E tests on the cloned fork and write results to file.
 	logFileE2E := runtimelogs.RunE2ETestsInGoPath(clonePath, "/tmp")
 
@@ -68,20 +55,22 @@ func RunPRCoverage(w http.ResponseWriter, r *http.Request) {
 
 	touchPoints := serviceparser.GetTouchPointsOfPR(hunks, branchDetails)
 	response := gremlin.GetTouchPointCoverage(touchPoints)
+	output, err := json.Marshal(response)
 
-	render.JSON(w, r, response) // Return the same thing for now.
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.Header().Set("content-type", "application/json")
+	w.Write(output)
 }
 
 func main() {
-	router := Routes()
-
-	walkFunc := func(method string, route string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-		sugar.Infof("%s %s\n", method, route) // Walk and print out all routes
-		return nil
+	http.HandleFunc("/", processPR)
+	address := ":8080"
+	log.Println("Starting server on address", address)
+	err := http.ListenAndServe(address, nil)
+	if err != nil {
+		panic(err)
 	}
-	if err := chi.Walk(router, walkFunc); err != nil {
-		sugar.Panicf("Logging err: %s\n", err.Error()) // panic if there is an error
-	}
-
-	sugar.Info(http.ListenAndServe(":8080", router)) // Note, the port is usually gotten from the environment.
 }
