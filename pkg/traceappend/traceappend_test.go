@@ -1,8 +1,11 @@
 package traceappend
 
 import (
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
+	"os"
+	"strings"
 	"testing"
+
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 )
 
 func TestAppendExpr(t *testing.T) {
@@ -28,11 +31,14 @@ func TestAppendExpr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := AppendExpr(tt.args.file)
+			got, err := AppendExpr(tt.args.file, true)
 			if err != nil {
 				t.Errorf("AppendExpr() error = %v", err)
-				return
+			}
+			if !strings.Contains(string(got), "defer Exit(Enter())") {
+				t.Errorf("Did not append expr to code, got: %v\n", got)
 			}
 		})
 	}
+	os.Remove("./testdata/testexprappend_bkp.go")
 }
