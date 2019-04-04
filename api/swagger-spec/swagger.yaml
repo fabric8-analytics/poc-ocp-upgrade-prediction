@@ -1,0 +1,212 @@
+swagger: '2.0'
+info:
+  title: API for OCP PoC
+  description: Spec for the RESTful interface to the proof of concept code for the OCP upgrade use-case.
+  version: '0.1'
+basePath: /api/v1/
+consumes:
+  - application/json
+produces:
+  - application/json
+paths:
+  /liveness:
+    get:
+      tags:
+        - Service settings
+      operationId: api_v1.liveness
+      summary: Get service liveness
+      responses:
+        '200':
+          description: Service is alive
+  /readiness:
+    get:
+      tags:
+        - Service settings
+      operationId: api_v1.readiness
+      summary: Get service readiness
+      responses:
+        '200':
+          description: Service is ready
+  /prcoverage:
+    get:
+      tags:
+        - Coverage for a single PR
+      operationId: api_v1.prcoverage
+      summary: >-
+        This endpoint, given a repository name and PR number returns the coverage numbers from the
+        component end to end tests if the runtime paths are set.
+      parameters:
+        - in: body
+          name: body
+          description: >-
+            Request body expects a PR whose branch has still not been deleted and its repository name,
+            of the form openshift/*
+          required: true
+          schema:
+            $ref: '#/definitions/PRJson'
+      responses:
+        '200':
+          schema:
+            $ref: '#/definitions/Response'
+          description: The paths convered and uncovered in different test runs of the PR
+        '500':
+          description: Internal Server Error
+
+  /createprnode:
+    post:
+      tags:
+        - Create PR node in graph
+      operationId: api_v1.createprnode
+      parameters:
+        - in: body
+          name: body
+          required: true
+          description: >-
+            Request body here expects a PR number and parent repository name, the `go build` for the
+            PR should not be throwing errors. 
+          schema:
+            $ref: '#/definitions/PRJson'
+      responses:
+        '200':
+          description: nodes creation started
+        '500':
+          description: Internal server error
+
+  /clustergraphcreation:
+    post:
+      tags:
+      - Create the graph for all services at a particular cluster version
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/imagePayload'
+      responses:
+        '200':
+          description: Graph creation started
+        '500':
+          description: Internal server error
+  
+  /upgradetests:
+    get:
+      tags:
+        - Get the product tests that are supposed to be a part of upgrade testing for a release
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            $ref: '#/definitions/upgradeVersions'
+      responses:
+        '200':
+          schema:
+            $ref: '#/definitions/upgradeVersionResponse'
+          description: The paths convered and uncovered in different test runs of the PR
+        '500':
+          description: Internal Server Error
+
+  /testpathrelease:
+    get:
+      tags:
+        - Get the path coverage of a service test for a specific release version
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              version:
+                type: string
+              component:
+                type: string
+              test_name:
+                type: string
+      responses:
+        '200':
+          schema:
+            $ref: '#/definitions/testpathresponse'
+          description: The paths convered and uncovered in different test runs of the PR
+        '500':
+          description: Internal Server Error
+
+definitions:
+  PRJson:
+    title: Request containing the PR details
+    description: Request containing the repo name and PR number
+    properties:
+      repo_url:
+        type: string
+      pr_id:
+        type: number
+
+  Response:
+    title: Response for PR coverage endpoint.
+    description: Response for the PR coverage endpoint.
+    properties:
+      status:
+        type: string
+      result:
+        type: object
+        properties:
+          component_e2e:
+            $ref: "#/definitions/component"
+          product_e2e:
+            $ref: "#/definitions/component"
+
+  component:
+    type: object
+    properties:
+      diff_edges_covered:
+        $ref: '#/definitions/edges'
+      diff_edges_uncovered:
+        $ref: '#/definitions/edges'
+      diff_coverage:
+        type: number
+  
+  edges:
+    type: array
+    items:
+      type: object
+      properties:
+        from:
+          type: number
+        to:
+          type: number
+
+  imagePayload:
+    type: object
+    properties:
+      registry:
+        type: string
+      repository:
+        type: string
+      revision:
+        type: string
+  
+  upgradeVersions:
+    type: object
+    properties:
+      current_version:
+        type: string
+      upgrade_version:
+        type: string
+  
+  upgradeVersionResponse:
+    type: object
+    properties:
+      status:
+        type: string
+      result:
+        type: array
+        items:
+          type: string
+
+  testpathresponse:
+    type: object
+    properties:
+      status:
+        type: string
+      result:
+        $ref: '#/definitions/edges'
