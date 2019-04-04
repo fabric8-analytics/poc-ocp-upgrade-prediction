@@ -106,10 +106,10 @@ paths:
         '500':
           description: Internal Server Error
 
-  /testpathrelease:
+  /testpathservice:
     get:
       tags:
-        - Get the path coverage of a service test for a specific release version
+        - Get the path coverage of a service test for a specific service version
       parameters:
         - in: body
           name: body
@@ -128,6 +128,42 @@ paths:
           schema:
             $ref: '#/definitions/testpathresponse'
           description: The paths convered and uncovered in different test runs of the PR
+        '500':
+          description: Internal Server Error
+  
+  /prdiff:
+    get:
+      tags:
+        - Given a particular PR, returns the function nodes modified or added in the PR
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            properties:
+              repo_url:
+                type: string
+              pr_id:
+                type: number
+      responses:
+        '200':
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              result:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    function_name:
+                      type: string
+                    function_container_package:
+                      type: string
+
+          description: The functions added/modified in the PR
         '500':
           description: Internal Server Error
 
@@ -208,5 +244,7 @@ definitions:
     properties:
       status:
         type: string
-      result:
+      covered_paths:
+        $ref: '#/definitions/edges'
+      uncovered_paths:
         $ref: '#/definitions/edges'
