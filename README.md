@@ -27,7 +27,7 @@
 - Send a get request to the REST API, the PR and repo are hardcoded for now runtimepaths will be created. Here's a sample request:
 ```bash
 curl -X GET \
-  http://localhost:8080 \
+  http://localhost:8080/api/v1/createprnode \
   -H 'Content-Type: application/json' \
   -H 'Postman-Token: b9c125ed-8d5f-4481-9251-1ee42d44a723' \
   -H 'cache-control: no-cache' \

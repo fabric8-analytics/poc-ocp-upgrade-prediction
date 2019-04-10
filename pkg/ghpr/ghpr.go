@@ -23,7 +23,7 @@ var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 // GetPRPayload uses the GHPR API to get all the data for a pull request from Github.
-func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []serviceparser.MetaRepo, string) {
+func GetPRPayload(repoStr string, prId int, gopath string) ([]*gdf.FileDiff, []serviceparser.MetaRepo, string) {
 	ghPrToken := os.Getenv("GH_TOKEN")
 
 	if ghPrToken == "" {
@@ -42,6 +42,8 @@ func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []ser
 	if err != nil {
 		sugarLogger.Fatalf("%v\n", err)
 	}
+
+	sugarLogger.Info(*pr.DiffURL)
 	diffStr, err := http.Get(*pr.DiffURL)
 
 	if err != nil {
@@ -59,21 +61,25 @@ func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []ser
 		sugarLogger.Errorf("Unable to parse diff, got error: %v\n", err)
 	}
 
-	var allHunks [][]*gdf.Hunk
+	// In the interest of time, just use more space.
+	var allDiffs []*gdf.FileDiff
 	for _, fileDiff := range fileDiffs {
-		if !strings.HasSuffix(fileDiff.OrigName, ".go") {
-			sugarLogger.Debugf("Not processing non go source %s\n", fileDiff.OrigName)
+		if !strings.HasSuffix(fileDiff.OrigName, ".go") &&
+			!(fileDiff.OrigName != "/dev/null" && strings.HasSuffix(fileDiff.NewName, ".go")) &&
+			!(fileDiff.OrigName == "Gopkg.toml" || fileDiff.OrigName == "Godeps.json" || fileDiff.OrigName == "glide.yaml" || fileDiff.OrigName == "go.mod") {
+			sugarLogger.Debugf("Not processing non go source %s -> %s\n", fileDiff.OrigName, fileDiff.NewName)
 			continue
 		}
-		hunks := fileDiff.Hunks
-		allHunks = append(allHunks, hunks)
+
+		allDiffs = append(allDiffs, fileDiff)
 	}
 
 	// Get PR details for cloning.
 	fork := serviceparser.MetaRepo{
-		Branch:   pr.Head.GetRef(),
-		Revision: pr.Head.GetSHA(),
-		URL:      pr.Head.Repo.GetCloneURL(),
+		Branch:    pr.Head.GetRef(),
+		Revision:  pr.Head.GetSHA(),
+		URL:       pr.Head.Repo.GetCloneURL(),
+		LocalPath: "",
 	}
 
 	upstream := serviceparser.MetaRepo{
@@ -83,7 +89,7 @@ func GetPRPayload(repoStr string, prId int, gopath string) ([][]*gdf.Hunk, []ser
 	}
 
 	// Clone the fork
-	clonePath := utils.RunCloneShell(fork.URL, gopath, fork.Branch, fork.Revision)
+	fork.LocalPath = utils.RunCloneShell(fork.URL, gopath, fork.Branch, fork.Revision)
 	// return the diffs and PR details.
-	return allHunks, []serviceparser.MetaRepo{fork, upstream}, clonePath
+	return allDiffs, []serviceparser.MetaRepo{fork, upstream}, fork.LocalPath
 }

@@ -39,8 +39,8 @@ func processPR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the PR hunks, details of base and fork and the clonePath where the fork has been cloned.
-	hunks, branchDetails, clonePath := ghpr.GetPRPayload(pr.RepoURL, pr.PrID, "/tmp")
+	// Get the PR diffs, details of base and fork and the clonePath where the fork has been cloned.
+	diffs, branchDetails, clonePath := ghpr.GetPRPayload(pr.RepoURL, pr.PrID, "/tmp")
 
 	// ParseService called to parse and populate all the arrays in serviceparser.
 	serviceparser.ParseService("machine-config-controller", clonePath)
@@ -53,7 +53,7 @@ func processPR(w http.ResponseWriter, r *http.Request) {
 	gremlin.AddRuntimePathsToGraph("machine-config-controller",
 		branchDetails[1].Revision, runtimelogs.CreateRuntimePaths(strings.Split(logFileE2E, "\n")))
 
-	touchPoints := serviceparser.GetTouchPointsOfPR(hunks, branchDetails)
+	touchPoints := serviceparser.GetTouchPointsOfPR(diffs, branchDetails)
 	response := gremlin.GetTouchPointCoverage(touchPoints)
 	output, err := json.Marshal(response)
 
@@ -66,7 +66,7 @@ func processPR(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", processPR)
+	http.HandleFunc("/api/v1/createprnode", processPR)
 	address := ":8080"
 	log.Println("Starting server on address", address)
 	err := http.ListenAndServe(address, nil)

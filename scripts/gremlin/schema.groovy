@@ -49,4 +49,7 @@ allKeys.each { k ->
     }
 }
 
+// Create the edge indexes
+edgeLabel = mgmt.makePropertyKey('edge_label').dataType(String.class).make();
+mgmt.buildIndex('index_prop_key_edge_label', Edge.class).addKey(edgeLabel).buildCompositeIndex();
 mgmt.commit();

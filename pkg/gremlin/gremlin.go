@@ -37,6 +37,27 @@ func RunQuery(query string) map[string]interface{} {
 	return result
 }
 
+// RunQuery runs the specified gremling query and returns its result unmarshaled.
+func RunQueryUnMarshaled(query string) string {
+	payload := map[string]interface{}{
+		"gremlin": query,
+	}
+	payloadJSON, _ := json.Marshal(payload)
+	response, err := http.Post(os.Getenv("GREMLIN_REST_URL"), "application/json", bytes.NewBuffer(payloadJSON))
+
+	if err != nil {
+		sugarLogger.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(response.Body)
+
+	if err != nil {
+		sugarLogger.Error(err)
+	}
+	return buf.String()
+}
+
 // ReadJSON reads the contents of a JSON and returns it as a map[string]interface{}
 func ReadJSON(jsonFilepath string) string {
 	b, err := ioutil.ReadFile(jsonFilepath) // just pass the file name
@@ -147,7 +168,9 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 			query := fmt.Sprintf(
 				`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
 			// The "From" function will always be a part of the service.
-			query = query + fmt.Sprintf(`fromFunc = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();`, path.ContainerPackage, path.From)
+			query = query + \
+				fmt.Sprintf(`fromFunc = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();`,
+							path.ContainerPackage, path.From)
 			// If there is no selector for the called function function is most assumed to be defined in same package.
 			selectorParts := strings.Split(path.SelectorCallee, ",")
 			lastSelectorName := selectorParts[len(selectorParts)-1]
@@ -156,7 +179,7 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 				query += fmt.Sprintf(`functionNodeExists = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
 										if (functionNodeExists.hasNext()) {
 											functionNode = functionNodeExists.next();
-											fromFunc.addEdge('compile_time_call', functionNode);
+											fromFunc.addEdge('compile_time_call', functionNode).property('edge_label', 'compile_time_call');
 										}
 										`, path.ContainerPackage, path.To)
 				sugarLogger.Debugf("First case: %v\n", query)
@@ -165,7 +188,7 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 				query += fmt.Sprintf(`functionNodeExists = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
 												if (functionNodeExists.hasNext()) {
 													functionNode = functionNodeExists.next();
-													fromFunc.addEdge('compile_time_call', functionNode);
+													fromFunc.addEdge('compile_time_call', functionNode).property('edge_label', 'compile_time_call');
 												}
 												`, lastSelectorName, path.To)
 				sugarLogger.Debugf("Second case: %v\n", query)
@@ -178,7 +201,8 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 											if (exists) {
 											importNode.next().addEdge('provides', functionNode);
 											}
-											fromFunc.addEdge('compile_time_call', functionNode);`, strings.Join(selectorParts, ".")+"."+path.To, selectorParts[len(selectorParts)-1])
+											fromFunc.addEdge('compile_time_call', functionNode).property('edge_label', 'compile_time_call');`,
+											strings.Join(selectorParts, ".")+"."+path.To, selectorParts[len(selectorParts)-1])
 				sugarLogger.Debugf("Third case: %v\n", query)
 			}
 			batch += query
@@ -258,5 +282,12 @@ func GetTouchPointCoverage(touchpoints *serviceparser.TouchPoints) string {
 		sugarLogger.Errorf("%v\n", err)
 	}
 	// TODO
+	sugarLogger.Info(GetAllPaths())
 	return string(responseJson)
+}
+
+// GetAllPaths returns all "compile time paths" that were a part of the PR
+func GetAllPaths() string {
+	query := "g.E().has('edge_label', 'compile_time_call').path().fold();"
+	return RunQueryUnMarshaled(query)
 }
