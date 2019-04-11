@@ -36,6 +36,14 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		}
 	}
 
+	// If the path exists there will be no error.
+	_, nilIfExists := os.Stat(clonePath)
+
+	if nilIfExists == nil {
+		sugarLogger.Infof("A repo with that remote URL already exists at %v in local clones, not cloning again.", clonePath)
+		return clonePath
+	}
+
 	cmdRun := exec.Command("git", "clone", repo, clonePath, "--branch", branch)
 	stdouterr, err := cmdRun.CombinedOutput()
 

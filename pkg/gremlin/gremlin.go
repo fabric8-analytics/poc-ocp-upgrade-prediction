@@ -168,9 +168,9 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 			query := fmt.Sprintf(
 				`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
 			// The "From" function will always be a part of the service.
-			query = query + \
+			query = query +
 				fmt.Sprintf(`fromFunc = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();`,
-							path.ContainerPackage, path.From)
+					path.ContainerPackage, path.From)
 			// If there is no selector for the called function function is most assumed to be defined in same package.
 			selectorParts := strings.Split(path.SelectorCallee, ",")
 			lastSelectorName := selectorParts[len(selectorParts)-1]
@@ -202,7 +202,7 @@ func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string
 											importNode.next().addEdge('provides', functionNode);
 											}
 											fromFunc.addEdge('compile_time_call', functionNode).property('edge_label', 'compile_time_call');`,
-											strings.Join(selectorParts, ".")+"."+path.To, selectorParts[len(selectorParts)-1])
+					strings.Join(selectorParts, ".")+"."+path.To, selectorParts[len(selectorParts)-1])
 				sugarLogger.Debugf("Third case: %v\n", query)
 			}
 			batch += query
