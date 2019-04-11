@@ -89,7 +89,7 @@ func GetPRPayload(repoStr string, prId int, gopath string) ([]*gdf.FileDiff, []s
 	}
 
 	// Clone the fork
-	fork.LocalPath = utils.RunCloneShell(fork.URL, gopath, fork.Branch, fork.Revision)
+	fork.LocalPath, _ = utils.RunCloneShell(fork.URL, gopath, fork.Branch, fork.Revision)
 	// return the diffs and PR details.
 	return allDiffs, []serviceparser.MetaRepo{fork, upstream}, fork.LocalPath
 }

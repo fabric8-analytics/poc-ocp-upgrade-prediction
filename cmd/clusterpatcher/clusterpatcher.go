@@ -66,9 +66,12 @@ func main() {
 			slogger.Debugf("Cloning repository: %s", serviceDetails["io.openshift.build.source-location"].String())
 
 			// Git clone the repo
-			serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir,
+			serviceRoot, cloned := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir,
 				serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
 
+			if cloned == false {
+				continue
+			}
 			// Now run the source code patching script.
 			traceappend.PatchSource(serviceRoot)
 		}

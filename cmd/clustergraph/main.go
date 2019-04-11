@@ -40,9 +40,13 @@ func main() {
 		gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
 
 		// Git clone the repo
-		serviceRoot := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), *destdir,
+		serviceRoot, cloned := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), *destdir,
 			serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
-	serviceparser.ParseService(serviceName, serviceRoot)
+
+		if cloned == false {
+			continue
+		}
+		serviceparser.ParseService(serviceName, serviceRoot)
 
 		gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion)
 

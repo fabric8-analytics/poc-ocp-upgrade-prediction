@@ -20,8 +20,8 @@ var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 // RunCloneShell runs a git clone inside a child shell and clones it as a subdir inside destdir in the workspace style
-// of go.
-func RunCloneShell(repo, destdir, branch, revision string) string {
+// of go. Returns false if nothing is cloned
+func RunCloneShell(repo, destdir, branch, revision string) (string, bool) {
 	repo = strings.Split(repo, ".git")[0]
 
 	clonePathUrl, err := url.Parse(repo)
@@ -41,7 +41,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 
 	if nilIfExists == nil {
 		sugarLogger.Infof("A repo with that remote URL already exists at %v in local clones, not cloning again.", clonePath)
-		return clonePath
+		return clonePath, false
 	}
 
 	cmdRun := exec.Command("git", "clone", repo, clonePath, "--branch", branch)
@@ -60,7 +60,7 @@ func RunCloneShell(repo, destdir, branch, revision string) string {
 		sugarLogger.Error(err)
 	}
 
-	return filepath.Join(clonePath)
+	return filepath.Join(clonePath), true
 }
 
 // CopyFile copies a file
