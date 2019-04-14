@@ -32,7 +32,7 @@ func createImage(imageRegistry, imageName, dockerfilePath string) {
 		reader,
 		types.ImageBuildOptions{
 			Context:    reader,
-			Tags:       []string{imageRegistry + imageName},
+			Tags:       []string{filepath.Join(imageRegistry, imageName)},
 			Dockerfile: dockerFile,
 			Remove:     true})
 	if err != nil {
