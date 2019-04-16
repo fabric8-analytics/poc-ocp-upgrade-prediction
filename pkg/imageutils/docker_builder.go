@@ -16,7 +16,7 @@ import (
 var logger, _ = zap.NewDevelopment()
 var slogger = logger.Sugar()
 
-func createImage(imageRegistry, imageName, dockerfilePath string) {
+func CreateImage(imageRegistry, imageName, dockerfilePath string) {
 	ctx := context.Background()
 	cli, err := client.NewEnvClient()
 	if err != nil {

@@ -9,6 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/imageutils"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/traceappend"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
@@ -62,6 +65,7 @@ func main() {
 		destdir = filepath.Join(destdir, clusterVersion)
 		for idx := range services {
 			service := services[idx].Map()
+			serviceName := service["name"].String()
 			serviceDetails := service["annotations"].Map()
 			slogger.Debugf("Cloning repository: %s", serviceDetails["io.openshift.build.source-location"].String())
 
@@ -74,6 +78,32 @@ func main() {
 			}
 			// Now run the source code patching script.
 			traceappend.PatchSource(serviceRoot)
+
+			// Get all the Dockerfiles in the service
+			matches, err := filepath.Glob(filepath.Join(serviceRoot, "Dockerfile*"))
+			if err != nil {
+				slogger.Errorf("%v\n", err)
+			}
+
+			created := 0
+
+			for _, match := range matches {
+				// Now creeate the docker image of the patched source code
+				if !strings.Contains(match, "rhel") && strings.Contains(match, serviceName) {
+					imageutils.CreateImage("quay.io", serviceName, match)
+					created = 1
+					break
+				}
+			}
+
+			if created == 0 {
+				_, err := os.Stat(filepath.Join(serviceRoot, "Dockerfile"))
+				if err == nil {
+					imageutils.CreateImage("quay.io", serviceName, filepath.Join(serviceRoot, "Dockerfile"))
+				} else {
+					slogger.Errorf("Not creating any image since we did not find a suitable dockerfile.")
+				}
+			}
 		}
 	} else {
 		fmt.Printf("No arguments provided, exiting gracefully.\n Usage: \n")
