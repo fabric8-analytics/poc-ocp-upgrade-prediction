@@ -1,7 +1,6 @@
 package traceappend
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,17 +57,17 @@ func patchFile(filePath string, addFunc bool) error {
 			return err
 		}
 
-		codeToAdd, err := ioutil.ReadFile("./codetoadd.go.template")
+		// Change REMOTE_SERVER_URL in the code we have to add.
 		url := os.Getenv("REMOTE_SERVER_URL")
 		// This is ugly but go's url thing sucks.
 		if !strings.HasSuffix(url, "/") {
 			url += "/"
 		}
-		UrlAddedCode := strings.ReplaceAll(string(codeToAdd), "REMOTE_SERVER_URL", url)
-		utils.WriteStringToFile(filepath, addFuncToSource(filepath, UrlAddedCode))
+		URLAddedCode := strings.ReplaceAll(string(codetoadd), "REMOTE_SERVER_URL", url)
+		utils.WriteStringToFile(filePath, addFuncToSource(filePath, URLAddedCode))
 	}
 
-	patched, err := AppendExpr(filePath, patchImports)
+	patched, err := AppendExpr(filePath)
 	if err != nil {
 		return err
 	}

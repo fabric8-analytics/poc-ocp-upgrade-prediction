@@ -62,7 +62,7 @@ func generateFile(fset *token.FileSet, file *ast.File) ([]byte, error) {
 }
 
 // AppendExpr modifies an AST by adding an expr at the start of its body.
-func AppendExpr(file string, patchImports bool) ([]byte, error) {
+func AppendExpr(file string) ([]byte, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)
 	if err != nil {
@@ -79,7 +79,8 @@ func AppendExpr(file string, patchImports bool) ([]byte, error) {
 			bodyList, ok := c.Node().(*ast.BlockStmt)
 			if ok {
 				count++
-				bodyList.List = append(bodyList.List, deferNode...)
+				tempBody := append(deferNode, bodyList.List...)
+				bodyList.List = tempBody
 			}
 		}
 		return true
@@ -106,14 +107,15 @@ func createNewNodes() []ast.Stmt {
 	return expr.(*ast.FuncLit).Body.List
 }
 
-func addFuncToSource(appendCode, filepath string) string {
+func addFuncToSource(filePath, appendCode string) string {
 	fset1 := token.NewFileSet()
 	fset2 := token.NewFileSet()
+	sugarLogger.Info(appendCode)
 	cf1, err := parser.ParseFile(fset1, "code1.go", appendCode, parser.ParseComments)
 	if err != nil {
 		fmt.Println(err)
 	}
-	cf2, err := parser.ParseFile(fset2, filepath, nil, parser.ParseComments)
+	cf2, err := parser.ParseFile(fset2, filePath, nil, parser.ParseComments)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -122,3 +124,14 @@ func addFuncToSource(appendCode, filepath string) string {
 	content, _ := generateFile(fset2, cf2)
 	return string(content)
 }
+
+var codetoadd = `
+package dummy
+
+func _logClusterCodePath() {
+    // Skip this function, and fetch the PC and file for its parent
+    pc, _, _, _ := runtime.Caller(1);
+    jsonLog := []byte(fmt.Sprintf("{\"fn\": \"%s\"}", runtime.FuncForPC(pc).Name()))
+    http.Post("REMOTE_SERVER_URL" + "logcode", "application/json", bytes.NewBuffer(jsonLog))
+}
+`

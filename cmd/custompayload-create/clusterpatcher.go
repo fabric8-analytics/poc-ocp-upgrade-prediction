@@ -3,13 +3,14 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/imageutils"
 
@@ -29,6 +30,8 @@ func main() {
 		`The Openshift services folder where the clustergraph binary has cloned all the service repos,
 		if this flag is present it is given precedence over the cluster version flag.`)
 	noImages := flag.Bool("no-images", false, "Whether container images need to be built")
+	destdirPtr := flag.String("destdir", "", "The directory where the repositories need to be cloned.")
+
 	flag.Parse()
 	slogger.Debugf("Flags initialized.")
 
@@ -46,21 +49,27 @@ func main() {
 			fmt.Sprintf("registry.svc.ci.openshift.org/ocp/release:%s", *payloadVersion),
 			"-o", "json")
 
-		clusterJsonBin, err := cmd.CombinedOutput()
+		clusterJSONBin, err := cmd.CombinedOutput()
 		if err != nil {
 			slogger.Fatalf("%v\n", err)
 		}
 		slogger.Infof("Successfully retrieved ocp payload details, now cloning repositories")
-		clusterServicesJSON := string(clusterJsonBin)
+		clusterServicesJSON := string(clusterJSONBin)
 		if err != nil {
 			slogger.Fatalf("Could not get payload details error:(%v);\n Output: %s\n", err, string(clusterServicesJSON))
 		}
 
 		services := gjson.Get(clusterServicesJSON, "references.spec.tags").Array()
 		clusterVersion := gjson.Get(clusterServicesJSON, "digest").String()
-		destdir, err := os.Getwd()
-		if err != nil {
-			slogger.Errorf("%v\n", err)
+
+		var destdir string
+		if *destdirPtr != "" {
+			destdir = *destdirPtr
+		} else {
+			destdir, err = os.Getwd()
+			if err != nil {
+				slogger.Errorf("%v\n", err)
+			}
 		}
 		destdir = filepath.Join(destdir, clusterVersion)
 		for idx := range services {
