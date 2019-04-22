@@ -28,7 +28,7 @@ func main() {
 	repoSourceDir := flag.String("repo-src-dir", "",
 		`The Openshift services folder where the clustergraph binary has cloned all the service repos,
 		if this flag is present it is given precedence over the cluster version flag.`)
-
+	noImages := flag.Bool("no-images", false, "Whether container images need to be built")
 	flag.Parse()
 	slogger.Debugf("Flags initialized.")
 
@@ -79,6 +79,9 @@ func main() {
 			// Now run the source code patching script.
 			traceappend.PatchSource(serviceRoot)
 
+			if *noImages {
+				continue
+			}
 			// Get all the Dockerfiles in the service
 			matches, err := filepath.Glob(filepath.Join(serviceRoot, "Dockerfile*"))
 			if err != nil {
