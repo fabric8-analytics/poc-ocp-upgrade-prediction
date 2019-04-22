@@ -1,8 +1,10 @@
 package traceappend
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 
@@ -14,7 +16,7 @@ var slogger = logger.Sugar()
 
 // PatchSource patches a source path to add tracing.
 func PatchSource(sourcePath string) {
-	importedTracey := make(map[string]bool)
+	addedTracer := make(map[string]bool)
 	slogger.Infof("Patching sourcePath: %v\n", sourcePath)
 	err := filepath.Walk(sourcePath, func(path string, f os.FileInfo, err error) error {
 		// Don't patch vendor and .git for now.
@@ -25,26 +27,15 @@ func PatchSource(sourcePath string) {
 		if filepath.Ext(path) == ".go" {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
-			_, hasImp := importedTracey[dirName]
-			err = patchFile(path, !hasImp)
+			_, hasTracer := addedTracer[dirName]
+			err = patchFile(path, !hasTracer)
 			if err != nil {
 				return err
 			}
-			if !hasImp {
-				importedTracey[dirName] = true
+			if !hasTracer {
+				addedTracer[dirName] = true
 			}
 		}
-
-		if f.Name() == "Gopkg.toml" {
-			utils.InstallDependency("Gopkg.toml")
-		} else if f.Name() == "glide.yaml" {
-			utils.InstallDependency("glide.yaml")
-		} else if f.Name() == "Godeps.json" {
-			utils.InstallDependency("Godeps.json")
-		} else if f.Name() == "go.mod" {
-			utils.InstallDependency("go.mod")
-		}
-
 		return nil
 	})
 
@@ -53,18 +44,28 @@ func PatchSource(sourcePath string) {
 	}
 }
 
-func patchFile(filePath string, patchImports bool) error {
-	if patchImports {
+func patchFile(filePath string, addFunc bool) error {
+	if addFunc {
 		patched, err := AddImportToFile(filePath)
 
 		if err != nil {
 			return err
 		}
-		err = utils.WriteStringToFile(filePath, string(patched))
 
+		// Write the imports to file.
+		err = utils.WriteStringToFile(filePath, string(patched))
 		if err != nil {
 			return err
 		}
+
+		codeToAdd, err := ioutil.ReadFile("./codetoadd.go.template")
+		url := os.Getenv("REMOTE_SERVER_URL")
+		// This is ugly but go's url thing sucks.
+		if !strings.HasSuffix(url, "/") {
+			url += "/"
+		}
+		UrlAddedCode := strings.ReplaceAll(string(codeToAdd), "REMOTE_SERVER_URL", url)
+		utils.WriteStringToFile(filepath, addFuncToSource(filepath, UrlAddedCode))
 	}
 
 	patched, err := AppendExpr(filePath, patchImports)
