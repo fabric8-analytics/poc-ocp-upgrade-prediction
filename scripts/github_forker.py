@@ -13,6 +13,6 @@ def main():
     args = parser.parse_args()
     print(args)
 
-s
+
 if __name__ == "__main__":
     main()
