@@ -38,8 +38,8 @@ def main():
         need to be validated.""",
         required=True,
     )
-    if os.environ.get("GITHUB_HOST_TOKEN") == None:
-        os.Exit("No GITHUB_HOST_TOKEN available in environment.")
+    if os.environ.get("GH_TOKEN") == None:
+        os.Exit("No GH_TOKEN available in environment.")
     args = parser.parse_args()
     # First get all the repositories that are required to be forked.
     process = subprocess.run(
@@ -71,7 +71,7 @@ def fork_repos(service_arr, args):
     response = requests.get(
         urljoin(GITHUB_API_URL, "/users/{}/repos".format(args.namespace)),
         headers={
-            "Authorization": "token {}".format(os.environ.get("GITHUB_HOST_TOKEN"))
+            "Authorization": "token {}".format(os.environ.get("GH_TOKEN"))
         },
     )
     if response.status_code > 400:
@@ -96,7 +96,7 @@ def fork_repos(service_arr, args):
                     GITHUB_API_URL, "/repos/{}/forks".format('/'.join(repo.split('/')[-2:]))
                 ),
                 headers={
-                    "Authorization": "token " + os.environ.get("GITHUB_HOST_TOKEN"),
+                    "Authorization": "token " + os.environ.get("GH_TOKEN"),
                     "Content-Type": "application/json",
                     "user-agent": "ocp-poc",
                 },
