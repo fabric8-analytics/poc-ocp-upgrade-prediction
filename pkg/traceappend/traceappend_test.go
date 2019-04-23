@@ -31,7 +31,7 @@ func TestAppendExpr(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AppendExpr(tt.args.file, true)
+			got, err := AppendExpr(tt.args.file)
 			if err != nil {
 				t.Errorf("AppendExpr() error = %v", err)
 			}
