@@ -1,9 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"path/filepath"
+	"os/exec"
+
+	flag "github.com/spf13/pflag"
 
 	"go.uber.org/zap"
 
@@ -17,13 +18,17 @@ var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 func main() {
-	servicedir := flag.String("servicedir", "", "The path to folder that contains the cluster_version.json file.")
-	destdir := flag.String("destdir", "", "A folder where we can clone the repos of the service for analysis")
+	clusterversion := flag.String("cluster-version", "", "A release version of OCP")
+	destdir := flag.String("destdir", "./", "A folder where we can clone the repos of the service for analysis")
 
 	flag.Parse()
+	payloadInfo, err := exec.Command("oc", "adm", "release", "info", "--commits=true",
+		fmt.Sprintf("registry.svc.ci.openshift.org/ocp/release:%s", *clusterversion), "-o", "json").Output()
+	if err != nil {
+		sugarLogger.Errorf("(%v): %s", err, string(payloadInfo))
+	}
 
-	fmt.Println(servicedir)
-	clusterInfo := gremlin.ReadJSON(filepath.Join(*servicedir, "cluster_version.json"))
+	clusterInfo := string(payloadInfo)
 	services := gjson.Get(clusterInfo, "references.spec.tags").Array()
 	clusterVersion := gjson.Get(clusterInfo, "digest").String()
 	sugarLogger.Infow("Cluster version is", "clusterVersion", clusterVersion)
@@ -59,6 +64,7 @@ func main() {
 			gremlin.CreateDependencyNodes(serviceName, serviceVersion, imported)
 		}
 		gremlin.CreateCompileTimeFlows(serviceName, serviceVersion, serviceparser.AllCompileTimeFlows[serviceName])
+		break
 		// This concludes the offline flow.
 	}
 }
