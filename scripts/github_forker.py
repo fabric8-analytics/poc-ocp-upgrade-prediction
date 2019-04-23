@@ -58,6 +58,10 @@ def main():
     cluster_payload = json.loads(process.stdout)
     service_arr = cluster_payload.get("references", {}).get("spec", {}).get("tags", {})
     clusterversion = cluster_payload.get("digest", "")
+    fork_repos(service_arr, args)
+
+
+def fork_repos(service_arr, args):
     service_repo_map = {}
     for service_obj in service_arr:
         service_name = service_obj["name"]
@@ -89,7 +93,7 @@ def main():
             request = requests.Request(
                 "POST",
                 url=urljoin(
-                    GITHUB_API_URL, "/repos/openshift/{}/forks".format(reponame)
+                    GITHUB_API_URL, "/repos/{}/forks".format('/'.join(repo.split('/')[-2:]))
                 ),
                 headers={
                     "Authorization": "token " + os.environ.get("GITHUB_HOST_TOKEN"),
