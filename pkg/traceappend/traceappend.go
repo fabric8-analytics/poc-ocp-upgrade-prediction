@@ -25,7 +25,7 @@ func AddImportToFile(file string) ([]byte, error) {
 	f, err := parser.ParseFile(fset, file, nil, 0)
 
 	// This never fails, because its failure means that a module is already imported.
-
+	astutil.AddImport(fset, f, "fmt")
 	astutil.AddImport(fset, f, "runtime")
 	astutil.AddImport(fset, f, "net/http")
 	astutil.AddImport(fset, f, "bytes")
