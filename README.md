@@ -82,6 +82,12 @@ This script forks all the missing repositories that are mentioned in the payload
 ```bash
 $ python github_forker.py --namespace poc-ocp-upgrades --cluster-version=4.0.0-0.ci-2019-04-22-163416 --org=true
 ```
+### Push all changes for tracing source code to fork: scripts/commit_sources.py
+
+This script will commit all the changes made by `clusterpatcher` script and push them to github to our forks so that it can be picked by the ci-operator. Sample usage is almost the same as github_forker with the exception that `--no-verify=true` needs to be set if using global `git-secrets` as some repositories contain dummy AWS keys for running tests.
+```bash
+$python commit_sources.py --namespace poc-ocp-upgrades --cluster-version=4.0.0-0.ci-2019-04-22-163416 --org=true --no-verify=true
+```
 
 ### Wrapper over gremlin for e2e product runtime node creation: e2e_logger_api.py
 
