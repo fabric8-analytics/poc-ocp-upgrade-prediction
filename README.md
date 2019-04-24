@@ -3,7 +3,7 @@
 ## Initial Setup and configuration
 
 ### Setting up a local graph instance
-- Clone this repo OUTSIDE your gopath as with: `git clone --recursive-submodules -j8 https://github.com/fabric8-analytics/poc-ocp-upgrade-prediction`
+- Clone this repo OUTSIDE your gopath as with: `git clone —recursive -submodules -j8 https://github.com/fabric8-analytics/poc-ocp-upgrade-prediction`
 - Run [Installation script](./scripts/install-graph.sh) to setup your gremlin (one time).
 - Run [automation script](./scripts/run_graph.sh) to run your gremlin every time you want to bring up the graph to run this code.
 - Now create JanusGraph indices for faster node creation, as with `go run scripts/populate_janusgraph_schema.go`
