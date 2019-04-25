@@ -26,9 +26,9 @@ func AddImportToFile(file string) ([]byte, error) {
 
 	// This never fails, because its failure means that a module is already imported.
 	astutil.AddImport(fset, f, "fmt")
-	astutil.AddImport(fset, f, "runtime")
-	astutil.AddImport(fset, f, "net/http")
-	astutil.AddImport(fset, f, "bytes")
+	astutil.AddNamedImport(fset, f, "godefaultruntime", "runtime")
+	astutil.AddNamedImport(fset, f, "godefaulthttp", "net/http")
+	astutil.AddNamedImport(fset, f, "godefaultbytes", "bytes")
 	// Generate the code
 	src, err := generateFile(fset, f)
 	if err != nil {
@@ -130,8 +130,8 @@ package dummy
 
 func _logClusterCodePath() {
     // Skip this function, and fetch the PC and file for its parent
-    pc, _, _, _ := runtime.Caller(1);
-    jsonLog := []byte(fmt.Sprintf("{\"fn\": \"%s\"}", runtime.FuncForPC(pc).Name()))
-    http.Post("REMOTE_SERVER_URL" + "logcode", "application/json", bytes.NewBuffer(jsonLog))
+    pc, _, _, _ := godefaultruntime.Caller(1);
+    jsonLog := []byte(fmt.Sprintf("{\"fn\": \"%s\"}", godefaultruntime.FuncForPC(pc).Name()))
+    godefaulthttp.Post("REMOTE_SERVER_URL" + "logcode", "application/json", godefaultbytes.NewBuffer(jsonLog))
 }
 `
