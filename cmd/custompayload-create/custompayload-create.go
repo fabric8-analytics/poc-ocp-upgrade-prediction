@@ -30,11 +30,17 @@ func main() {
 		`The Openshift services folder where the clustergraph binary has cloned all the service repos,
 		if this flag is present it is given precedence over the cluster version flag.`)
 	noImages := flag.Bool("no-images", false, "Whether container images need to be built")
+	username := flag.String("user-name", "", "The Github user name of the user whose token is set for GH_TOKEN")
 	destdirPtr := flag.String("destdir", "", "The directory where the repositories need to be cloned.")
+	// noClone = flag.String("no-clone", false, "Whether clones already exist in [DESTDIR]")
 
 	flag.Parse()
-	slogger.Debugf("Flags initialized.")
-
+	if os.Getenv("GH_TOKEN") == "" {
+		slogger.Fatalf("Need a Github token for running this script to go around rate limits.")
+	}
+	if *username == "" {
+		slogger.Fatalf("Need a username for using the supplied GH_TOKEN.")
+	}
 	if repoSourceDir != nil && *repoSourceDir != "" {
 		srcDirList, err := ioutil.ReadDir(*repoSourceDir)
 		if err != nil {
@@ -77,14 +83,18 @@ func main() {
 			serviceName := service["name"].String()
 			serviceDetails := service["annotations"].Map()
 			slogger.Debugf("Cloning repository: %s", serviceDetails["io.openshift.build.source-location"].String())
+			slogger.Debugf("%v\n", serviceDetails)
 
-			// Git clone the repo
-			serviceRoot, cloned := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), destdir,
-				serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
-
-			if cloned == false {
+			// Git clone the repo, with a token
+			ghToken := os.Getenv("GH_TOKEN")
+			if serviceDetails["io.openshift.build.source-location"].String() == "" {
+				// This shouldn't be required but there's payloads that don't have this in the CI.
 				continue
 			}
+			cloneURLParts := strings.Split(serviceDetails["io.openshift.build.source-location"].String(), "://")
+			serviceRoot, _ := utils.RunCloneShell(fmt.Sprintf("%s://%s:%s@%s", cloneURLParts[0], *username, ghToken, cloneURLParts[1]), destdir,
+				serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
+
 			// Now run the source code patching script.
 			traceappend.PatchSource(serviceRoot)
 

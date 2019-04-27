@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -42,9 +44,49 @@ func RunCloneShell(repo, destdir, branch, revision string) (string, bool) {
 	if nilIfExists == nil {
 		sugarLogger.Infof("A repo with that remote URL already exists at %v in local clones, not cloning again.", clonePath)
 		return clonePath, false
+	} else {
+		time.Sleep(120 * time.Second)
 	}
 
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", "https://api.github.com/rate_limit", nil)
+	req.Header.Set("Authorization", "token "+os.Getenv("GH_TOKEN"))
+	response, _ := client.Do(req)
+
+	sugarLogger.Debugf("%v\n", response.Header.Get("X-Ratelimit-Remaining"))
+
 	cmdRun := exec.Command("git", "clone", repo, clonePath, "--branch", branch)
+	stdout, err := cmdRun.StdoutPipe()
+
+	if err != nil {
+		sugarLogger.Error("%v\n", stdout)
+		sugarLogger.Error(err)
+	}
+	stderr, err := cmdRun.StderrPipe()
+	if err != nil {
+		sugarLogger.Error("%v\n", stderr)
+		sugarLogger.Error(err)
+	}
+	err = cmdRun.Start()
+	if err != nil {
+		sugarLogger.Error(err)
+	}
+	scannerErr := bufio.NewScanner(stderr)
+	scannerOut := bufio.NewScanner(stdout)
+
+	scannerErr.Split(bufio.ScanLines)
+	scannerOut.Split(bufio.ScanLines)
+
+	for scannerErr.Scan() {
+		m := scannerErr.Text()
+		sugarLogger.Debug(m)
+	}
+	for scannerOut.Scan() {
+		m := scannerOut.Text()
+		sugarLogger.Debug(m)
+	}
+
+	cmdRun = exec.Command("git", "-C", clonePath, "checkout", revision)
 	stdouterr, err := cmdRun.CombinedOutput()
 
 	if err != nil {
@@ -52,15 +94,7 @@ func RunCloneShell(repo, destdir, branch, revision string) (string, bool) {
 		sugarLogger.Error(err)
 	}
 
-	cmdRun = exec.Command("git", "-C", clonePath, "checkout", revision)
-	stdouterr, err = cmdRun.CombinedOutput()
-
-	if err != nil {
-		sugarLogger.Error(string(stdouterr))
-		sugarLogger.Error(err)
-	}
-
-	return filepath.Join(clonePath), true
+	return clonePath, true
 }
 
 // CopyFile copies a file
@@ -119,35 +153,6 @@ func copyFileContents(src, dst string) (err error) {
 	}
 	err = out.Sync()
 	return
-}
-
-// InstallDependency installs the tracer using the correct package manager.
-func InstallDependency(manifestFileName string) {
-	pkgStr := "github.com/rootAvish/go-tracey@d6c82cd1b2fb258bcb40afadcf4b1e0538b81492"
-	var pkgManagerCommand string
-	if filepath.Ext(manifestFileName) == ".toml" {
-		// Run dep install command
-		pkgManagerCommand = "dep ensure -add " + pkgStr
-
-	} else if filepath.Ext(manifestFileName) == ".yaml" {
-		// Run glide install command
-		pkgManagerCommand = "glide get " + pkgStr
-	} else if filepath.Ext(manifestFileName) == ".json" {
-		// Run godeps install command
-		pkgManagerCommand = fmt.Sprintf("go get \"%s\";godeps save ./...;", pkgStr)
-	} else {
-		// There is no "vgo install"
-		pkgManagerCommand = ""
-	}
-
-	if pkgManagerCommand != "" {
-		cmdRun := exec.Command(pkgManagerCommand)
-		stdout, err := cmdRun.CombinedOutput()
-		if err != nil {
-			sugarLogger.Error(string(stdout))
-			sugarLogger.Error(err)
-		}
-	}
 }
 
 // ReadFileLines returns an array of strings from a file, just like python.

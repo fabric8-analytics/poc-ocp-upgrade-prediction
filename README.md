@@ -59,10 +59,11 @@ curl -X GET \
 * Follow the installation procedure to install all the binaries from above
 * Make sure to login to registry.svc.ci.openshift.org(your ~/.docker/config.json should have a token for registry.svc.ci.openshift.org)
 * Optionally specify the `--no-images` flag so that it doesn't bother with docker image creation.
+* Also need to supply your Github username (the username to which the repo is attached, otherwise we run into clone API limits.)
 * This binary will create a custom payload based off an already existing payload for an OCP release. Sample usage:
 
 ```bash
-$ $GOPATH/bin/custompayload-create --cluster-version=4.0.0-0.ci-2019-04-15-000954 --destdir=/tmp --no-images # This version won't work, it's outdated. Pick one from the ocp releases page.
+$ $GOPATH/bin/custompayload-create --cluster-version=4.0.0-0.ci-2019-04-15-000954 --user-name='rootAvish' --destdir=/tmp --no-images # This version won't work, it's outdated. Pick one from the ocp releases page.
 ```
 * This will, in you `destdir` or your current working directory create a directory inside which all the services will be cloned and patched.
 * This'll take a long time.

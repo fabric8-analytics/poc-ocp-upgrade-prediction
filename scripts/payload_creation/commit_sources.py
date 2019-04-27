@@ -4,6 +4,7 @@ import argparse
 import subprocess
 import os
 import json
+import sys
 from urllib.parse import urljoin, urlparse, ParseResult
 from pathlib import Path
 import sys
@@ -14,13 +15,12 @@ GITHUB_API_URL = "https://api.github.com/"
 
 
 def run_with_release_info(args):
+    """Get the release payload information and return github refs for CI operator to use."""
     if os.environ.get("GH_TOKEN") == None:
         _logger.fatal("No GH_TOKEN available in environment.")
-        import sys
-
         sys.exit(1)
     # First get all the repositories that are required to be forked.
-    if args.get("digest", None) is None:
+    if "digest" not in args:
         process = subprocess.run(
             [
                 "oc",
@@ -36,17 +36,27 @@ def run_with_release_info(args):
         )
         cluster_payload = json.loads(process.stdout)
         service_arr = cluster_payload.get("references", {}).get("spec", {}).get("tags", {})
+        service_name_origin_map = {
+            service["name"]: service["annotations"]["io.openshift.build.source-location"].replace(
+                "https://", ""
+            )
+            for service in service_arr
+            if service["annotations"]["io.openshift.build.source-location"] != ""
+        }
         clusterversion = cluster_payload.get("digest", "")
     else:
         clusterversion = args.digest
-    git_refs = commit_sources(clusterversion, args.destdir, args.git_namespace, args.no_verify)
-    return git_refs
+    if not args.pushed:  # No need to commit sources
+        return commit_sources(clusterversion, args.destdir, args.git_namespace, args.no_verify)
+    else:
+        return get_pushed_branches(clusterversion, args.destdir)
 
 
 def commit_sources(clusterversion, destdir, namespace, noverify):
+    """Commit all patches to Github to our fork, for use by the CI opereator."""
     git_refs = {}
     path = Path(destdir) / clusterversion / "src/github.com/openshift/"
-    for repopath in path.glob("*"):
+    for repopath in path.expanduser().glob("*"):
         if os.stat(repopath / ".git") == None:  # Check for git repository.
             continue
         # First add the changes
@@ -126,13 +136,44 @@ def commit_sources(clusterversion, destdir, namespace, noverify):
         )
         _logger.debug("{}\n{}\n".format(remote_add.stdout, remote_add.stderr))
         push = subprocess.run(
-            ["git", "push", "ocp-poc-fork", branch_name_cleaned],
+            ["git", "push","-f", "ocp-poc-fork", branch_name_cleaned],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=repopath,
         )
         _logger.debug("{}\n{}\n".format(push.stdout, push.stderr))
         git_refs[remote_url.geturl()] = [branch_name_cleaned]
+    return git_refs
+
+
+def get_pushed_branches(clusterversion, destdir):
+    """If branches are already pushed, get them mapped to remotes."""
+    git_refs = {}
+    path = Path(destdir) / clusterversion / "src/github.com/openshift/"
+    for repopath in path.expanduser().glob("*"):
+        if os.stat((repopath / ".git")) == None:
+            continue
+        cmd = subprocess.run(
+            ["git", "branch"], stderr=subprocess.PIPE, stdout=subprocess.PIPE, cwd=repopath
+        )
+        branch_name = cmd.stdout.strip().decode("utf-8").split("\n")[0].replace("* ", "")
+        origin = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=repopath,
+        )
+        fork = subprocess.run(
+            ["git", "remote", "get-url", "ocp-poc-fork"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=repopath,
+        )
+        origin_remote = str(origin.stdout.strip().decode("utf-8"))
+        fork_remote = str(fork.stdout.strip().decode("utf-8"))
+        origin_remote = origin_remote.split("@")[1]
+        git_refs["https://" + origin_remote] = branch_name
+    return git_refs
 
 
 if __name__ == "__main__":
