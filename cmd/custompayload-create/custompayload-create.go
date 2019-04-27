@@ -47,7 +47,7 @@ func main() {
 			slogger.Errorf("%v\n", err)
 		}
 		for _, fileInf := range srcDirList {
-			traceappend.PatchSource(fileInf.Name())
+			traceappend.PatchSource(filepath.Join(*repoSourceDir, fileInf.Name()))
 		}
 	} else if payloadVersion != nil && *payloadVersion != "" {
 		slogger.Infof("Running flow for cluster version option.")
