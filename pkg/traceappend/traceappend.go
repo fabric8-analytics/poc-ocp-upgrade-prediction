@@ -74,8 +74,8 @@ func AppendExpr(file string) ([]byte, error) {
 	fset = token.NewFileSet()
 
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
-		_, ok := c.Parent().(*ast.FuncDecl)
-		if ok {
+		parent, ok := c.Parent().(*ast.FuncDecl)
+		if ok && parent.Name.Name != "_logClusterCodePath" {
 			bodyList, ok := c.Node().(*ast.BlockStmt)
 			if ok {
 				count++

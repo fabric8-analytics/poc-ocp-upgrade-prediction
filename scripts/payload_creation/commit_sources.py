@@ -142,7 +142,7 @@ def commit_sources(clusterversion, destdir, namespace, noverify):
             cwd=repopath,
         )
         _logger.debug("{}\n{}\n".format(push.stdout, push.stderr))
-        git_refs[remote_url.geturl()] = [branch_name_cleaned]
+        git_refs[remote_url.geturl()] = branch_name_cleaned
     return git_refs
 
 
