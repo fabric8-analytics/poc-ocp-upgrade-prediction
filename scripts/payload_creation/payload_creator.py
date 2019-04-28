@@ -16,6 +16,7 @@ def run_openshift_ci(args):
     for remote, branch in git_refs.items():
         repo_name = remote.split("/")[-1]
         ref = "{}/{}@{}".format(args.git_namespace, repo_name, branch)
+        _logger.info("Building image for: {}".format(ref))
         configpath = ci_config_path / "{}/openshift-{}-release-4.1.yaml".format(repo_name, repo_name)
         configpath = configpath.expanduser()
         if not os.path.exists(configpath):
