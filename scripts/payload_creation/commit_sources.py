@@ -46,10 +46,10 @@ def run_with_release_info(args):
         clusterversion = cluster_payload.get("digest", "")
     else:
         clusterversion = args.digest
-    if not args.pushed:  # No need to commit sources
-        return commit_sources(clusterversion, args.destdir, args.git_namespace, args.no_verify)
-    else:
+    if args.pushed:  # No need to commit sources
         return get_pushed_branches(clusterversion, args.destdir)
+    else:
+        return commit_sources(clusterversion, args.destdir, args.git_namespace, args.no_verify)
 
 
 def commit_sources(clusterversion, destdir, namespace, noverify):
@@ -136,7 +136,7 @@ def commit_sources(clusterversion, destdir, namespace, noverify):
         )
         _logger.debug("{}\n{}\n".format(remote_add.stdout, remote_add.stderr))
         push = subprocess.run(
-            ["git", "push","-f", "ocp-poc-fork", branch_name_cleaned],
+            ["git", "push", "-f", "ocp-poc-fork", branch_name_cleaned],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=repopath,

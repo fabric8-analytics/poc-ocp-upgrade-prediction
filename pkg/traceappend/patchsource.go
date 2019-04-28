@@ -58,7 +58,11 @@ func patchFile(filePath string, addFunc bool) error {
 		}
 
 		// Change REMOTE_SERVER_URL in the code we have to add.
-		url := os.Getenv("REMOTE_SERVER_URL")
+		url, exists := os.LookupEnv("REMOTE_SERVER_URL")
+
+		if !exists {
+			slogger.Fatalf("REMOTE_SERVER_URL does not exist in environment.")
+		}
 		// This is ugly but go's url thing sucks.
 		if !strings.HasSuffix(url, "/") {
 			url += "/"

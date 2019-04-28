@@ -70,7 +70,7 @@ if __name__ == "__main__":
         help="If destdir already contains a clone of all the repositories.",
     )  # TODO: See if this argument is required.
     parser.add_argument(
-        "--pushed", default=False, help="If all refs have already been pushed to Github."
+        "--pushed", default=False, help="If all refs have already been pushed to Github.", type=bool
     )
     args = parser.parse_args()
     run_openshift_ci(args)
