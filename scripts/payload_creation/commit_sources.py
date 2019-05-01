@@ -28,7 +28,7 @@ def run_with_release_info(args):
                 "release",
                 "info",
                 "--commits=true",
-                "registry.svc.ci.openshift.org/ocp/release:{}".format(args.cluster_version),
+                "quay.io/openshift-release-dev/ocp-release:{}".format(args.cluster_version),
                 "--output=json",
             ],
             stdout=subprocess.PIPE,

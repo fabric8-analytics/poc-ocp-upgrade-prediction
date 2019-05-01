@@ -52,7 +52,7 @@ func main() {
 	} else if payloadVersion != nil && *payloadVersion != "" {
 		slogger.Infof("Running flow for cluster version option.")
 		cmd := exec.Command("oc", "adm", "release", "info", "--commits=true",
-			fmt.Sprintf("registry.svc.ci.openshift.org/ocp/release:%s", *payloadVersion),
+			fmt.Sprintf("quay.io/openshift-release-dev/ocp-release:%s", *payloadVersion),
 			"-o", "json")
 
 		clusterJSONBin, err := cmd.CombinedOutput()

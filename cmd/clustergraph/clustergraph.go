@@ -23,7 +23,7 @@ func main() {
 
 	flag.Parse()
 	payloadInfo, err := exec.Command("oc", "adm", "release", "info", "--commits=true",
-		fmt.Sprintf("registry.svc.ci.openshift.org/ocp/release:%s", *clusterversion), "-o", "json").Output()
+		fmt.Sprintf("quay.io/openshift-release-dev/ocp-release:%s", *clusterversion), "-o", "json").Output()
 	if err != nil {
 		sugarLogger.Errorf("(%v): %s", err, string(payloadInfo))
 	}

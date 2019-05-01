@@ -24,7 +24,7 @@ func PatchSource(sourcePath string) {
 		}
 
 		// No need to patch unit tests.
-		if filepath.Ext(path) == ".go" && !strings.HasSuffix(filepath.Base(path), "_test.go") {
+		if filepath.Ext(path) == ".go" && !strings.HasSuffix(filepath.Base(path), "_test.go") && !strings.Contains(path, "bindata") {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
 			_, hasTracer := addedTracer[dirName]
