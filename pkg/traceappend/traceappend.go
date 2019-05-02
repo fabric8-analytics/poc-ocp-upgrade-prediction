@@ -25,7 +25,6 @@ func AddImportToFile(file string) ([]byte, error) {
 	f, err := parser.ParseFile(fset, file, nil, 0)
 
 	// This never fails, because its failure means that a module is already imported.
-	astutil.AddImport(fset, f, "fmt")
 	astutil.AddNamedImport(fset, f, "godefaultruntime", "runtime")
 	astutil.AddNamedImport(fset, f, "godefaulthttp", "net/http")
 	astutil.AddNamedImport(fset, f, "godefaultbytes", "bytes")
@@ -54,7 +53,10 @@ func AddImportToFile(file string) ([]byte, error) {
 func generateFile(fset *token.FileSet, file *ast.File) ([]byte, error) {
 	var output []byte
 	buffer := bytes.NewBuffer(output)
-	if err := printer.Fprint(buffer, fset, file); err != nil {
+	cfg := printer.Config{
+		Mode: 4,
+	}
+	if err := cfg.Fprint(buffer, fset, file); err != nil {
 		return nil, err
 	}
 
@@ -131,7 +133,7 @@ package dummy
 func _logClusterCodePath() {
     // Skip this function, and fetch the PC and file for its parent
     pc, _, _, _ := godefaultruntime.Caller(1);
-    jsonLog := []byte(fmt.Sprintf("{\"fn\": \"%s\"}", godefaultruntime.FuncForPC(pc).Name()))
+    jsonLog := []byte("{\"fn\": \"" + godefaultruntime.FuncForPC(pc).Name() + "\"}")
     godefaulthttp.Post("REMOTE_SERVER_URL" + "logcode", "application/json", godefaultbytes.NewBuffer(jsonLog))
 }
 `

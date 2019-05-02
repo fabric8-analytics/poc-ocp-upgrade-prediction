@@ -1,6 +1,7 @@
 package traceappend
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,10 +20,17 @@ func PatchSource(sourcePath string) {
 	slogger.Infof("Patching sourcePath: %v\n", sourcePath)
 	err := filepath.Walk(sourcePath, func(path string, f os.FileInfo, err error) error {
 		// Don't patch vendor and .git for now.
-		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor") {
+		fmt.Printf("%v %v\n", f.Name(), path)
+		if f.IsDir() && (f.Name() == ".git" || f.Name() == "third_party" || f.Name() == "test" || f.Name() == "staging" || f.Name() == "oc" || f.Name() == "proc") {
 			return filepath.SkipDir
 		}
 
+		excludeVendor, set := os.LookupEnv("EXCLUDE_VENDOR")
+		if !set || (set && excludeVendor != "true") {
+			if f.IsDir() && f.Name() == "vendor" {
+				return filepath.SkipDir
+			}
+		}
 		// No need to patch unit tests.
 		if filepath.Ext(path) == ".go" && !strings.HasSuffix(filepath.Base(path), "_test.go") && !strings.Contains(path, "bindata") {
 			slogger.Infof("Patching file: %v\n", path)
