@@ -101,6 +101,6 @@ Run this with `python e2e_logger_api.py`, should start the flask development ser
 
 ## License and contributing
 
-See [LICENSE](LICENSE)  
+See [LICENSE](LICENSE), specific parts of the source are under more permissive licensing in keeping with the wishes of the original authors and those files with the appropriate attribution in their hears contain information about the same.
 
 To contribute to this project Just send a PR.

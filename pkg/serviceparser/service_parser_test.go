@@ -33,7 +33,7 @@ func Test_parseServiceAST(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := parseServiceAST(tt.args.node, tt.args.fset, tt.args.pkg)
+			got, got1 := parseServiceAST(tt.args.node.(*ast.Package), tt.args.fset, tt.args.pkg)
 			if got == nil {
 				t.Errorf("parseServiceAST() got nil for functions.")
 			}
