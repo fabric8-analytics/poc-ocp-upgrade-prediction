@@ -17,10 +17,10 @@ import (
 
 // GetCompileTimeCalls returns a golang callgraph that contains all the edges we need to put between
 // our functions that go into the callgraph.
-func GetCompileTimeCalls(dir string, args []string) error {
+func GetCompileTimeCalls(dir string, args []string) ([]Edge, error) {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "No main program/package in arguments.")
-		return nil
+		return nil, nil
 	}
 
 	cfg := &packages.Config{
@@ -31,10 +31,10 @@ func GetCompileTimeCalls(dir string, args []string) error {
 
 	initial, err := packages.Load(cfg, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if packages.PrintErrors(initial) > 0 {
-		return fmt.Errorf("packages contain errors")
+		return nil, fmt.Errorf("packages contain errors")
 	}
 
 	// Create and build SSA-form program representation.
@@ -46,20 +46,20 @@ func GetCompileTimeCalls(dir string, args []string) error {
 	cg.DeleteSyntheticNodes()
 
 	// Allocate these once, outside the traversal.
-	data := Edge{fset: prog.Fset}
-
+	var edges []Edge
 	if err := callgraph.GraphVisitEdges(cg, func(edge *callgraph.Edge) error {
+		data := Edge{fset: prog.Fset}
 		data.position.Offset = -1
 		data.edge = edge
 		data.Caller = edge.Caller.Func
 		data.Callee = edge.Callee.Func
 		// TODO: Correct logic to return this struct and use it to create compile time paths in gremlin.
-		fmt.Println(data)
+		edges = append(edges, data)
 		return nil
 	}); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return edges, nil
 }
 
 // Edge for us represents a compile time edge.

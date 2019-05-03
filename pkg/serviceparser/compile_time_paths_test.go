@@ -27,7 +27,7 @@ func TestGetCompileTimeCalls(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := GetCompileTimeCalls(tt.args.dir, tt.args.args); (err != nil) != tt.wantErr {
+			if _, err := GetCompileTimeCalls(tt.args.dir, tt.args.args); (err != nil) != tt.wantErr {
 				t.Errorf("GetCompileTimeCalls() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
