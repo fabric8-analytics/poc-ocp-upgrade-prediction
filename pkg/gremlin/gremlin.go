@@ -291,3 +291,40 @@ func GetAllPaths() string {
 	query := "g.E().has('edge_label', 'compile_time_call').path().fold();"
 	return RunQueryUnMarshaled(query)
 }
+
+// CreateCompileTimePaths creates compile time paths from the callgraph output.
+func CreateCompileTimePaths(edges []serviceparser.Edge, serviceName, serviceVersion string) {
+	buffer := 630000
+	serviceFinder := fmt.Sprintf(`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
+		serviceName, serviceVersion)
+	queryString := serviceFinder
+	for _, edge := range edges {
+		callerFn := edge.Caller.Name()
+		callerPkg := edge.Caller.Package().Pkg.Name()
+
+		calleeFn := edge.Callee.Name()
+		calleePkg := edge.Callee.Package().Pkg.Name()
+
+		gremlin := fmt.Sprintf(`from = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out.has('vertex_label', 'function').has('name', '%s');
+			to := g.V(serviceNode).out()has('vertex_label', 'package').has('name', '%s').out.has('vertex_label', 'function').has('name', '%s');
+
+			if (from.hasNext()) {
+				if (to.hasNext()) {
+					fromNode = from.Next()
+					fromNode.addEdge('compile_time_call', to.next()).property('edge_label', 'compile_time_call');
+				}
+			}	
+			from.addEdge(to);
+		`, callerPkg, callerFn, calleePkg, calleeFn)
+		if len(queryString)+len(gremlin) < buffer {
+			queryString += gremlin
+		} else {
+			RunQuery(queryString)
+			queryString = serviceFinder + gremlin
+		}
+	}
+	if queryString != "" {
+		RunQuery(queryString)
+		queryString = ""
+	}
+}

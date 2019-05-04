@@ -4,7 +4,6 @@ package traceappend
 
 import (
 	"bytes"
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -54,7 +53,8 @@ func generateFile(fset *token.FileSet, file *ast.File) ([]byte, error) {
 	var output []byte
 	buffer := bytes.NewBuffer(output)
 	cfg := printer.Config{
-		Mode: 4,
+		Mode:     printer.TabIndent | printer.SourcePos,
+		Tabwidth: 4,
 	}
 	if err := cfg.Fprint(buffer, fset, file); err != nil {
 		return nil, err
@@ -112,14 +112,14 @@ func createNewNodes() []ast.Stmt {
 func addFuncToSource(filePath, appendCode string) string {
 	fset1 := token.NewFileSet()
 	fset2 := token.NewFileSet()
-	sugarLogger.Info(appendCode)
+
 	cf1, err := parser.ParseFile(fset1, "code1.go", appendCode, parser.ParseComments)
 	if err != nil {
-		fmt.Println(err)
+		sugarLogger.Error(err)
 	}
 	cf2, err := parser.ParseFile(fset2, filePath, nil, parser.ParseComments)
 	if err != nil {
-		fmt.Println(err)
+		sugarLogger.Error(err)
 	}
 
 	cf2.Decls = append(cf2.Decls, cf1.Decls...)
