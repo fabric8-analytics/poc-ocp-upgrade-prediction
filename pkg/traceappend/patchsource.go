@@ -21,7 +21,7 @@ func PatchSource(sourcePath string) {
 	err := filepath.Walk(sourcePath, func(path string, f os.FileInfo, err error) error {
 		// Don't patch vendor and .git for now.
 		fmt.Printf("%v %v\n", f.Name(), path)
-		if f.IsDir() && (f.Name() == ".git" || f.Name() == "third_party" || f.Name() == "test" || f.Name() == "staging" || f.Name() == "oc" || f.Name() == "proc") {
+		if f.IsDir() && (f.Name() == ".git" || f.Name() == "third_party" || f.Name() == "bindata" || f.Name() == "generated" || f.Name() == "test" || f.Name() == "staging" || f.Name() == "oc" || f.Name() == "proc") {
 			return filepath.SkipDir
 		}
 
@@ -32,7 +32,7 @@ func PatchSource(sourcePath string) {
 			}
 		}
 		// No need to patch unit tests.
-		if filepath.Ext(path) == ".go" && !strings.HasSuffix(filepath.Base(path), "_test.go") && !strings.Contains(path, "bindata") {
+		if filepath.Ext(path) == ".go" && !strings.HasSuffix(filepath.Base(path), "_test.go") && !strings.Contains(path, "bindata") && !strings.Contains(path, "generated") {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
 			_, hasTracer := addedTracer[dirName]
