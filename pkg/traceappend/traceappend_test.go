@@ -35,8 +35,8 @@ func TestAppendExpr(t *testing.T) {
 			if err != nil {
 				t.Errorf("AppendExpr() error = %v", err)
 			}
-			if !strings.Contains(string(got), "defer Exit(Enter())") {
-				t.Errorf("Did not append expr to code, got: %v\n", got)
+			if !strings.Contains(string(got), "_logClusterCodePath") {
+				t.Errorf("Did not append expr to code, got: %v\n", string(got))
 			}
 		})
 	}
