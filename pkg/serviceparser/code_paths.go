@@ -69,7 +69,7 @@ func processWrapperFunction(e *ast.FuncDecl, allCompilePaths *[]CodePath, pkg st
 				// Remove the last comma
 				sel = strings.TrimRight(sel, ",")
 				// If one of the builtins then ignore.
-				if _, ok := builtins[fn]; ok {
+				if _, ok := Builtins[fn]; ok {
 					break
 				}
 				// The caller will never have a selector, since it's one of the functions defined in this service.
@@ -95,7 +95,8 @@ func ParseTreePaths(pkg string, root ast.Node) []CodePath {
 	return allCompilePaths
 }
 
-var builtins = map[string]bool{
+// A map of all the builtins of the go programming language.
+var Builtins = map[string]bool{
 	"append":      true,
 	"cap":         true,
 	"close":       true,

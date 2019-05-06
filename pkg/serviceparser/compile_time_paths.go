@@ -1,4 +1,4 @@
-// Original Copyright: 2014 The Go Authors. All rights reserved. 
+// Original Copyright: 2014 The Go Authors. All rights reserved.
 // Original source:  https://raw.githubusercontent.com/golang/tools/master/cmd/callgraph/main.go
 // Changes done by me, Avishkar Gupta <avgupta@redhat.com> according to my needs.
 package serviceparser
@@ -17,7 +17,7 @@ import (
 
 // GetCompileTimeCalls returns a golang callgraph that contains all the edges we need to put between
 // our functions that go into the callgraph.
-func GetCompileTimeCalls(dir string, args []string) ([]Edge, error) {
+func GetCompileTimeCalls(dir string, args []string) ([]CompileEdge, error) {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "No main program/package in arguments.")
 		return nil, nil
@@ -46,9 +46,9 @@ func GetCompileTimeCalls(dir string, args []string) ([]Edge, error) {
 	cg.DeleteSyntheticNodes()
 
 	// Allocate these once, outside the traversal.
-	var edges []Edge
+	var edges []CompileEdge
 	if err := callgraph.GraphVisitEdges(cg, func(edge *callgraph.Edge) error {
-		data := Edge{fset: prog.Fset}
+		data := CompileEdge{fset: prog.Fset}
 		data.position.Offset = -1
 		data.edge = edge
 		data.Caller = edge.Caller.Func
@@ -62,8 +62,8 @@ func GetCompileTimeCalls(dir string, args []string) ([]Edge, error) {
 	return edges, nil
 }
 
-// Edge for us represents a compile time edge.
-type Edge struct {
+// CompileEdge for us represents a compile time edge.
+type CompileEdge struct {
 	Caller *ssa.Function
 	Callee *ssa.Function
 
@@ -72,7 +72,7 @@ type Edge struct {
 	position token.Position // initialized lazily
 }
 
-func (e *Edge) pos() *token.Position {
+func (e *CompileEdge) pos() *token.Position {
 	if e.position.Offset == -1 {
 		e.position = e.fset.Position(e.edge.Pos()) // called lazily
 	}
@@ -80,10 +80,10 @@ func (e *Edge) pos() *token.Position {
 }
 
 // Filename gives the filename in which the call was made.
-func (e *Edge) Filename() string { return e.pos().Filename }
+func (e *CompileEdge) Filename() string { return e.pos().Filename }
 
 // Line gives the Line where the call was made.
-func (e *Edge) Line() int { return e.pos().Line }
+func (e *CompileEdge) Line() int { return e.pos().Line }
 
 // Description is a method that returns a description for the edge from the underlying callgraph edge.
-func (e *Edge) Description() string { return e.edge.Description() }
+func (e *CompileEdge) Description() string { return e.edge.Description() }

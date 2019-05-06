@@ -1,3 +1,5 @@
+//runtimelogs parses the runtimelogs of the COMPONENT level end to end tests for an operator, and not the extended (product) end to end
+// tests that live inside the origin repository.
 package runtimelogs
 
 import (
@@ -57,7 +59,7 @@ func ParseComponentE2ELogs(testLog []string) (map[string][]RuntimeLogEntry, erro
 }
 
 // CreateRuntimePaths creates the runtime path entries in the graph.
-func CreateRuntimePaths(logs interface{}) []serviceparser.CodePath {
+func CreateRuntimePaths(logs interface{}, components *serviceparser.ServiceComponents) []serviceparser.CodePath {
 	var fileData []string
 	logFileStr, isFilePath := logs.(string)
 	if isFilePath {
@@ -108,8 +110,8 @@ func CreateRuntimePaths(logs interface{}) []serviceparser.CodePath {
 							"TestFlow": testName,
 						},
 						SelectorCallee:         "",
-						ContainerPackage:       serviceparser.FilePackageMap[fnCallee.Filename],
-						ContainerPackageCaller: serviceparser.FilePackageMap[fnCallee.Filename],
+						ContainerPackage:       components.FilePackageMap[fnCallee.Filename],
+						ContainerPackageCaller: components.FilePackageMap[fnCallee.Filename],
 					})
 					// no need to push back.
 				} else {
@@ -122,8 +124,8 @@ func CreateRuntimePaths(logs interface{}) []serviceparser.CodePath {
 							"TestFlow": testName,
 						},
 						SelectorCallee:         "",
-						ContainerPackage:       serviceparser.FilePackageMap[fnCallee.Filename],
-						ContainerPackageCaller: serviceparser.FilePackageMap[fnCaller.Filename],
+						ContainerPackage:       components.FilePackageMap[fnCallee.Filename],
+						ContainerPackageCaller: components.FilePackageMap[fnCaller.Filename],
 					})
 					// push back caller
 					callStack.Push(fnCaller)

@@ -14,36 +14,10 @@ import (
 var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
-// ImportContainer is a type to contain the import declaration, similar to *ast.ImportSpec
-type ImportContainer struct {
-	LocalName    string `json:"local_name"`
-	ImportPath   string `json:"import_path"`
-	DependentPkg string `json:"dependent_pkg"`
-}
-
-// AllPkgFunc variable contains all the services mapped to their corresponding functions.
-var AllPkgFunc = make(map[string]map[string][]string)
-
-// AllPkgImports contains all the external dependencies.
-var AllPkgImports = make(map[string]map[string]interface{})
-
-// AllCompileTimeFlows contains all the function calls identified at compile time.
-var AllCompileTimeFlows = make(map[string]map[string]interface{})
-
-// AllDeclaredPackages contains all the packages declared in this service.
-var AllDeclaredPackages map[string]bool
-
-// FilePackageMap is a mapping that tell you which package is in which file.
-var FilePackageMap map[string]string
-
 // ParseService parses a service and dumps all its functions to a JSON
-func ParseService(serviceName string, root string) {
-	sugarLogger.Info("Walking: ", root)
-	AllDeclaredPackages = make(map[string]bool)
-	AllPkgFunc[serviceName] = make(map[string][]string)
-	AllPkgImports[serviceName] = make(map[string]interface{})
-	AllCompileTimeFlows[serviceName] = make(map[string]interface{})
-	FilePackageMap = make(map[string]string)
+func (components *ServiceComponents) ParseService(serviceName string, root string) {
+	sugarLogger.Debugf("Parsing service: %v\n", root)
+
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir.
 		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor" || strings.Contains(f.Name(), "generated") || strings.Contains(f.Name(), "third_party") || strings.Contains(f.Name(), "test")) {
@@ -66,13 +40,12 @@ func ParseService(serviceName string, root string) {
 			pkgFiles := pkgast.Files
 			for filename := range pkgFiles {
 				// I think this will always be unique so not doing on a per-service basis.
-				FilePackageMap[filename] = pkgast.Name
+				components.FilePackageMap[filename] = pkgast.Name
 			}
-			AllDeclaredPackages[pkg] = true
+			components.AllDeclaredPackages[pkg] = true
 			pkgFunctions, pkgImports := parseServiceAST(pkgast, fset, pkg)
-			AllCompileTimeFlows[serviceName][pkg] = ParseTreePaths(pkg, pkgast)
-			AllPkgFunc[serviceName][pkg] = pkgFunctions
-			AllPkgImports[serviceName][pkg] = pkgImports
+			components.AllPkgFunc[pkg] = pkgFunctions
+			components.AllPkgImports[pkg] = pkgImports
 		}
 		return nil
 	})

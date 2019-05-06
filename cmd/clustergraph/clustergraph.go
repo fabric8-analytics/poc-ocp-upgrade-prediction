@@ -47,13 +47,14 @@ func main() {
 			} else {
 				serviceName = ServicePackageMap[filepath.Base(path)]
 			}
+			components := serviceparser.NewServiceComponents(serviceName)
 			serviceVersion := utils.GetServiceVersion(path)
 			gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
 
 			// Add the imports, packages, functions to graph.
-			serviceparser.ParseService(serviceName, path)
-			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion)
-			parseImportPushGremlin(serviceName, serviceVersion)
+			components.ParseService(serviceName, path)
+			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
+			parseImportPushGremlin(serviceName, serviceVersion, components)
 
 			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName})
 			sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
@@ -77,11 +78,11 @@ func main() {
 			if cloned == false {
 				continue
 			}
-			serviceparser.ParseService(serviceName, serviceRoot)
-			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion)
-			parseImportPushGremlin(serviceName, serviceVersion)
-			// TODO: This is outdated, fix in favor of CompileTimeFlows.
-			gremlin.CreateCompileTimeFlows(serviceName, serviceVersion, serviceparser.AllCompileTimeFlows[serviceName])
+			components := serviceparser.NewServiceComponents(serviceName)
+			components.ParseService(serviceName, serviceRoot)
+			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
+			parseImportPushGremlin(serviceName, serviceVersion, components)
+			// TODO: This flow is broken at this point, fix in favor of CompileTimeFlows.
 			break
 			// This concludes the offline flow.
 		}
@@ -102,8 +103,8 @@ func filterImports(imports []serviceparser.ImportContainer, serviceName string) 
 	return filtered
 }
 
-func parseImportPushGremlin(serviceName, serviceVersion string) {
-	serviceImports := serviceparser.AllPkgImports[serviceName]
+func parseImportPushGremlin(serviceName, serviceVersion string, components *serviceparser.ServiceComponents) {
+	serviceImports := components.AllPkgImports
 	for _, imports := range serviceImports {
 		imported, ok := imports.([]serviceparser.ImportContainer)
 		if !ok {

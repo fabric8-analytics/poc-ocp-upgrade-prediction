@@ -42,16 +42,17 @@ func processPR(w http.ResponseWriter, r *http.Request) {
 	// Get the PR diffs, details of base and fork and the clonePath where the fork has been cloned.
 	diffs, branchDetails, clonePath := ghpr.GetPRPayload(pr.RepoURL, pr.PrID, "/tmp")
 
+	components := serviceparser.NewServiceComponents("machine-config-controller")
 	// ParseService called to parse and populate all the arrays in serviceparser.
-	serviceparser.ParseService("machine-config-controller", clonePath)
+	components.ParseService("machine-config-controller", clonePath)
 
 	// Run the E2E tests on the cloned fork and write results to file.
 	logFileE2E := runtimelogs.RunE2ETestsInGoPath(clonePath, "/tmp")
 
 	// Parse the file to generate condepaths and add the corresponding results to graph.
 	// TODO: Map service name from git path back to name
-	gremlin.AddRuntimePathsToGraph("machine-config-controller",
-		branchDetails[1].Revision, runtimelogs.CreateRuntimePaths(strings.Split(logFileE2E, "\n")))
+	gremlin.AddComponentRuntimePathsToGraph("machine-config-controller",
+		branchDetails[1].Revision, runtimelogs.CreateRuntimePaths(strings.Split(logFileE2E, "\n"), components))
 
 	touchPoints := serviceparser.GetTouchPointsOfPR(diffs, branchDetails)
 	response := gremlin.GetTouchPointCoverage(touchPoints)

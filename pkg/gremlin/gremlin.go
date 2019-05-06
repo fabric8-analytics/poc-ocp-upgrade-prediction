@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
 	"go.uber.org/zap"
@@ -154,86 +153,9 @@ func CreateDependencyNodes(serviceName, serviceVersion string, ic []serviceparse
 	}
 }
 
-// CreateCompileTimeFlows adds all the compile time code flow edges to the graph.
-func CreateCompileTimeFlows(serviceName, serviceVersion string, paths map[string]interface{}) {
-	for _, pathStruct := range paths {
-		pathArr, ok := pathStruct.([]serviceparser.CodePath)
-		if !ok {
-			sugarLogger.Fatalf("Did not get a valid codepath.")
-			os.Exit(-1)
-		}
-		batch := ""
-		for i, path := range pathArr {
-			// First find the service
-			query := fmt.Sprintf(
-				`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`, serviceName, serviceVersion)
-			// The "From" function will always be a part of the service.
-			query = query +
-				fmt.Sprintf(`fromFunc = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').next();`,
-					path.ContainerPackage, path.From)
-			// If there is no selector for the called function function is most assumed to be defined in same package.
-			selectorParts := strings.Split(path.SelectorCallee, ",")
-			lastSelectorName := selectorParts[len(selectorParts)-1]
-
-			if path.SelectorCallee == "" {
-				query += fmt.Sprintf(`functionNodeExists = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
-										if (functionNodeExists.hasNext()) {
-											functionNode = functionNodeExists.next();
-											fromFunc.addEdge('compile_time_call', functionNode).property('edge_label', 'compile_time_call');
-										}
-										`, path.ContainerPackage, path.To)
-				sugarLogger.Debugf("First case: %v\n", query)
-			} else if _, ok := serviceparser.AllDeclaredPackages[path.SelectorCallee]; ok {
-				// Check if selector is one of our packages by mapping it to localName.
-				query += fmt.Sprintf(`functionNodeExists = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
-												if (functionNodeExists.hasNext()) {
-													functionNode = functionNodeExists.next();
-													fromFunc.addEdge('compile_time_call', functionNode).property('edge_label', 'compile_time_call');
-												}
-												`, lastSelectorName, path.To)
-				sugarLogger.Debugf("Second case: %v\n", query)
-			} else {
-				sugarLogger.Info(path.SelectorCallee)
-				// Else create a new function node and link to external dependency
-				query += fmt.Sprintf(`functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').next();
-											importNode = g.V(serviceNode).out().has('vertex_label', 'dependency').has('local_name', '%s');
-											exists = importNode.hasNext();
-											if (exists) {
-											importNode.next().addEdge('provides', functionNode);
-											}
-											fromFunc.addEdge('compile_time_call', functionNode).property('edge_label', 'compile_time_call');`,
-					strings.Join(selectorParts, ".")+"."+path.To, selectorParts[len(selectorParts)-1])
-				sugarLogger.Debugf("Third case: %v\n", query)
-			}
-			batch += query
-			if i%20 == 0 {
-				gremlinResponse := RunQuery(batch)
-				hasException, err := json.Marshal(gremlinResponse)
-				if err != nil {
-					sugarLogger.Errorf("%v\n", err)
-				}
-				if strings.Contains(string(hasException), "Exception") {
-					sugarLogger.Errorf("Got exception while running query: %v\n", err)
-				}
-				batch = ""
-			}
-		}
-		if batch != "" {
-			gremlinResponse := RunQuery(batch)
-			hasException, err := json.Marshal(gremlinResponse)
-			if err != nil {
-				sugarLogger.Errorf("%v\n", err)
-			}
-			if strings.Contains(string(hasException), "Exception") {
-				sugarLogger.Errorf("Got exception while running query: %v\n", err)
-			}
-			batch = ""
-		}
-	}
-}
-
-func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string) {
-	for pkg, functions := range serviceparser.AllPkgFunc[serviceName] {
+// As advertised, adds a package node and its corresponding functions to the graph.
+func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string, components *serviceparser.ServiceComponents) {
+	for pkg, functions := range components.AllPkgFunc {
 		gremlinQuery := NewPackageNodeQuery(serviceName, serviceVersion, pkg)
 		gremlinQuery += CreateFunctionNodes(functions)
 
@@ -243,8 +165,8 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string) {
 	}
 }
 
-// AddRuntimePathsToGraph adds to our graph edges that represent runtime flows parsed from the end to end log.
-func AddRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
+// AddRuntimePathsToGraph adds to our graph edges that represent runtime flows parsed from the end to end log of COMPONENT end to end tests.
+func AddComponentRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
 	sugarLogger.Debugf("%v\n", runtimePaths)
 	serviceNodeFinderQuery := fmt.Sprintf(`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
 		serviceName, serviceVersion)
@@ -293,7 +215,7 @@ func GetAllPaths() string {
 }
 
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
-func CreateCompileTimePaths(edges []serviceparser.Edge, serviceName, serviceVersion string) {
+func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serviceVersion string) {
 	buffer := 630000
 	serviceFinder := fmt.Sprintf(`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
 		serviceName, serviceVersion)
