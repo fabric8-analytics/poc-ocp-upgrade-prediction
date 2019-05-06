@@ -46,7 +46,7 @@ func ParseService(serviceName string, root string) {
 	FilePackageMap = make(map[string]string)
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir.
-		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor" || strings.Contains(f.Name(), "generated")) {
+		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor" || strings.Contains(f.Name(), "generated") || strings.Contains(f.Name(), "third_party") || strings.Contains(f.Name(), "test")) {
 			return filepath.SkipDir
 		}
 		// Our logic is not for files.
