@@ -32,13 +32,37 @@ func TestRunCloneShell(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, cloned := RunCloneShell(tt.args.repo, tt.args.destdir, tt.args.branch, tt.args.revision)
 			_, err := os.Stat(got)
-			if err != nil  || !cloned {
+			if err != nil || !cloned {
 				t.Errorf("Clone failed.")
 			}
 			if got != tt.want {
 				t.Errorf("Wanted: %v\n, Got: %v\n", tt.want, got)
 			}
 			_ = os.Remove(got)
+		})
+	}
+}
+
+func TestGetServiceVersion(t *testing.T) {
+	type args struct {
+		dirpath string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Test git service version",
+			args: args{
+				dirpath: ".",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetServiceVersion(tt.args.dirpath); got == "" {
+				t.Errorf("GetServiceVersion() = %v", got)
+			}
 		})
 	}
 }
