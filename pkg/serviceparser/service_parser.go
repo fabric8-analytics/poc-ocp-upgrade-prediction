@@ -41,7 +41,12 @@ func (components *ServiceComponents) ParseService(serviceName string, root strin
 			if err != nil {
 				return err
 			}
-			pkg = filepath.Join(filepath.Dir(pkgDir), pkg)
+			base, _ := filepath.Split(pkgDir)
+			if pkg == "main" {
+				pkg = pkgDir
+			} else {
+				pkg = filepath.Join(base, pkg)
+			}
 			pkgFiles := pkgast.Files
 			for filename := range pkgFiles {
 				// I think this will always be unique so not doing on a per-service basis.

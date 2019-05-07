@@ -7,12 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
 	"go.uber.org/zap"
 )
 
-var logger, _ = zap.NewDevelopment()
+var logger, _ = zap.NewProduction()
 var sugarLogger = logger.Sugar()
 
 // RunQuery runs the specified gremling query and returns its result.
@@ -165,7 +166,7 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string, c
 	}
 }
 
-// AddRuntimePathsToGraph adds to our graph edges that represent runtime flows parsed from the end to end log of COMPONENT end to end tests.
+// AddComponentRuntimePathsToGraph adds to our graph edges that represent runtime flows parsed from the end to end log of COMPONENT end to end tests.
 func AddComponentRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
 	sugarLogger.Debugf("%v\n", runtimePaths)
 	serviceNodeFinderQuery := fmt.Sprintf(`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
@@ -217,36 +218,77 @@ func GetAllPaths() string {
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
 func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serviceVersion string) {
 	buffer := 630000
-	serviceFinder := fmt.Sprintf(`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
-		serviceName, serviceVersion)
-	queryString := serviceFinder
+	queryString := ""
 	for _, edge := range edges {
 		callerFn := edge.Caller.Name()
-		callerPkg := edge.Caller.Package().Pkg.Name()
+		callerPkg := fmt.Sprintf("%v", edge.Caller.Package())
+		callerPkg = strings.TrimPrefix(callerPkg, "package ")
 
+		// Only consider itself and kubernetes for now.
+		if len(strings.Split(callerPkg, "/")) < 3 || !strings.Contains(callerPkg, ".") {
+			continue
+		}
+		if strings.Contains(callerPkg, "vendor") && !strings.Contains(callerPkg, "k8s.io/kubernetes") {
+			continue
+		}
 		calleeFn := edge.Callee.Name()
-		calleePkg := edge.Callee.Package().Pkg.Name()
+		calleePkg := fmt.Sprintf("%v", edge.Callee.Package())
+		calleePkg = strings.TrimPrefix(calleePkg, "package ")
 
-		gremlin := fmt.Sprintf(`from = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out.has('vertex_label', 'function').has('name', '%s');
-			to := g.V(serviceNode).out()has('vertex_label', 'package').has('name', '%s').out.has('vertex_label', 'function').has('name', '%s');
+		sugarLogger.Debugf("%v\n", calleePkg)
+		if len(strings.Split(calleePkg, "/")) < 3 || !strings.Contains(calleePkg, ".") {
+			continue
+		}
+		if strings.Contains(calleePkg, "vendor") && !strings.Contains(calleePkg, "k8s.io/kubernetes") {
+			continue
+		}
+		callerPkg = sanitize(strings.Trim(callerPkg, "()*"))
+		calleePkg = sanitize(strings.Trim(calleePkg, "()*"))
 
+		var serviceNodeFrom, serviceNodeTo string
+		if strings.HasPrefix(callerPkg, "kubernetes") {
+			serviceNodeFrom = "kubernetes"
+			callerPkg = strings.TrimPrefix(callerPkg, "kubernetes/")
+		} else {
+			serviceNodeFrom = serviceName
+		}
+		if strings.HasPrefix(calleePkg, "kubernetes") {
+			serviceNodeTo = "kubernetes"
+			calleePkg = strings.TrimPrefix(calleePkg, "kubernetes/")
+		} else {
+			serviceNodeTo = serviceName
+		}
+
+		serviceFinder := fmt.Sprintf(`serviceNodeFrom = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();
+			serviceNodeTo = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
+			serviceNodeFrom, serviceVersion, serviceNodeTo, serviceVersion)
+
+		gremlin := fmt.Sprintf(`from = g.V(serviceNodeFrom).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
+			to = g.V(serviceNodeTo).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
 			if (from.hasNext()) {
 				if (to.hasNext()) {
 					fromNode = from.Next()
 					fromNode.addEdge('compile_time_call', to.next()).property('edge_label', 'compile_time_call');
 				}
 			}	
-			from.addEdge(to);
 		`, callerPkg, callerFn, calleePkg, calleeFn)
 		if len(queryString)+len(gremlin) < buffer {
-			queryString += gremlin
+			queryString += serviceFinder + gremlin
 		} else {
-			RunQuery(queryString)
+			response := RunQuery(queryString)
+			sugarLogger.Infof("Got response: %v from gremlin", response)
 			queryString = serviceFinder + gremlin
 		}
 	}
 	if queryString != "" {
-		RunQuery(queryString)
+		response := RunQuery(queryString)
+		sugarLogger.Infof("Got response: %v from gremlin", response)
 		queryString = ""
 	}
+}
+
+func sanitize(s string) string {
+	s = strings.TrimPrefix(s, "github.com/openshift/origin/")
+	s = strings.TrimPrefix(s, "github.com/openshift/origin/vendor/k8s.io/")
+	return s
 }

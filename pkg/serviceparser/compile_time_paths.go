@@ -17,7 +17,7 @@ import (
 
 // GetCompileTimeCalls returns a golang callgraph that contains all the edges we need to put between
 // our functions that go into the callgraph.
-func GetCompileTimeCalls(dir string, args []string) ([]CompileEdge, error) {
+func GetCompileTimeCalls(dir string, args []string, gopath string) ([]CompileEdge, error) {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "No main program/package in arguments.")
 		return nil, nil
@@ -27,6 +27,7 @@ func GetCompileTimeCalls(dir string, args []string) ([]CompileEdge, error) {
 		Mode:  packages.LoadAllSyntax,
 		Tests: false,
 		Dir:   dir,
+		Env:   append(os.Environ(), "GOPATH="+gopath),
 	}
 
 	initial, err := packages.Load(cfg, args...)

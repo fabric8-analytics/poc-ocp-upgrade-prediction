@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -56,8 +57,16 @@ func main() {
 			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
 
-			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName})
-			sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
+			// Hardcoding for now
+			homedir, err := os.UserHomeDir()
+			if err != nil {
+				sugarLogger.Errorf("Got error: %v\n", err)
+			}
+			gopathCompilePaths := filepath.Join(homedir, "temp")
+			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, gopathCompilePaths)
+			if err != nil {
+				sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
+			}
 			// Now create the compile time paths
 			gremlin.CreateCompileTimePaths(edges, serviceName, serviceVersion)
 		}
@@ -93,7 +102,7 @@ func filterImports(imports []serviceparser.ImportContainer, serviceName string) 
 	var filtered []serviceparser.ImportContainer
 	unique := make(map[string]bool)
 	for _, imported := range imports {
-		if len(filepath.SplitList(imported.ImportPath)) > 2 && !strings.Contains(imported.ImportPath, serviceName) {
+		if len(strings.Split(imported.ImportPath, "/")) > 2 && !strings.Contains(imported.ImportPath, serviceName) {
 			if !unique[imported.ImportPath] {
 				filtered = append(filtered, imported)
 				unique[imported.ImportPath] = true
