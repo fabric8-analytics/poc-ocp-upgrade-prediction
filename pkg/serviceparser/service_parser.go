@@ -19,8 +19,8 @@ func (components *ServiceComponents) ParseService(serviceName string, root strin
 	sugarLogger.Debugf("Parsing service: %v\n", root)
 
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
-		// Do not visit git dir.
-		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor" || strings.Contains(f.Name(), "generated") || strings.Contains(f.Name(), "third_party") || strings.Contains(f.Name(), "test")) {
+		// Do not visit git dir, vendor, generated, bindata etc.
+		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor" || strings.Contains(f.Name(), "generated") || strings.Contains(f.Name(), "third_party") || strings.Contains(f.Name(), "test") || (strings.Contains(f.Name(), "bindata"))) {
 			return filepath.SkipDir
 		}
 		// Our logic is not for files.
@@ -37,6 +37,11 @@ func (components *ServiceComponents) ParseService(serviceName string, root strin
 		}
 
 		for pkg, pkgast := range pkgs {
+			pkgDir, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			pkg = filepath.Join(filepath.Dir(pkgDir), pkg)
 			pkgFiles := pkgast.Files
 			for filename := range pkgFiles {
 				// I think this will always be unique so not doing on a per-service basis.
