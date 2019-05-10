@@ -13,8 +13,11 @@ def run_openshift_ci(args):
     # First push all sources to github.
     ci_config_path = Path(args.release_folder)
     git_refs = run_with_release_info(args)
+    repo_subset = set(args.repo_list)
     for remote, branch in git_refs.items():
         repo_name = remote.split("/")[-1]
+        if repo_subset and repo_name not in repo_subset:
+                continue
         ref = "{}/{}@{}".format(args.git_namespace, repo_name, branch)
         _logger.info("Building image for: {}".format(ref))
         configpath = ci_config_path / "{}/openshift-{}-release-4.1.yaml".format(repo_name, repo_name)
@@ -70,6 +73,7 @@ if __name__ == "__main__":
         default=False,
         help="If destdir already contains a clone of all the repositories.",
     )  # TODO: See if this argument is required.
+    parser.add_argument('repo_list', nargs=argparse.REMAINDER)
     parser.add_argument(
         "--pushed", default=False, help="If all refs have already been pushed to Github.", type=bool
     )
