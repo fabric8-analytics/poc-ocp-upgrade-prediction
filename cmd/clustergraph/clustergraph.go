@@ -81,7 +81,7 @@ func main() {
 			gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
 
 			// Git clone the repo
-			serviceRoot, cloned := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), *destdir,
+			serviceRoot, cloned := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), *destdir+strings.Split(clusterVersion, ":")[1][:7],
 				serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
 
 			if cloned == false {

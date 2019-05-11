@@ -47,15 +47,15 @@ def run_with_release_info(args):
     else:
         clusterversion = args.digest
     if args.pushed:  # No need to commit sources
-        return get_pushed_branches(clusterversion, args.destdir)
+        return get_pushed_branches(clusterversion.split(':')[1][:7], args.destdir)
     else:
-        return commit_sources(clusterversion, args.destdir, args.git_namespace, args.no_verify)
+        return commit_sources(clusterversion.split(':')[1][:7], args.destdir, args.git_namespace, args.no_verify)
 
 
-def commit_sources(clusterversion, destdir, namespace, noverify):
+def commit_sources(cluster_service_dir, destdir, namespace, noverify):
     """Commit all patches to Github to our fork, for use by the CI opereator."""
     git_refs = {}
-    path = Path(destdir) / clusterversion / "src/github.com/openshift/"
+    path = Path(destdir) / cluster_service_dir / "src/github.com/openshift/"
     for repopath in path.expanduser().glob("*"):
         if os.stat(repopath / ".git") == None:  # Check for git repository.
             continue
@@ -68,7 +68,7 @@ def commit_sources(clusterversion, destdir, namespace, noverify):
         )
         _logger.debug("{}\n{}\n".format(branch_name.stdout, branch_name.stderr))
         # Create a branch
-        branch_name_cleaned = str(branch_name.stdout.strip().decode("utf-8"))[:7]
+        branch_name_cleaned = str(branch_name.stdout.strip().decode("utf-8"))[:7] + '-patch'
         branch_create = subprocess.run(
             ["git", "checkout", "-b", branch_name_cleaned],
             stdout=subprocess.PIPE,
@@ -146,10 +146,10 @@ def commit_sources(clusterversion, destdir, namespace, noverify):
     return git_refs
 
 
-def get_pushed_branches(clusterversion, destdir):
+def get_pushed_branches(clusterdir, destdir):
     """If branches are already pushed, get them mapped to remotes."""
     git_refs = {}
-    path = Path(destdir) / clusterversion / "src/github.com/openshift/"
+    path = Path(destdir) / clusterdir / "src/github.com/openshift/"
     for repopath in path.expanduser().glob("*"):
         if os.stat((repopath / ".git")) == None:
             continue

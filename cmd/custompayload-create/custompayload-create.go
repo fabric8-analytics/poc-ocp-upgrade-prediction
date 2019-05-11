@@ -77,7 +77,7 @@ func main() {
 				slogger.Errorf("%v\n", err)
 			}
 		}
-		destdir = filepath.Join(destdir, clusterVersion)
+		destdir = filepath.Join(destdir, strings.Split(clusterVersion, ":")[1][:7])
 		for idx := range services {
 			service := services[idx].Map()
 			serviceName := service["name"].String()
