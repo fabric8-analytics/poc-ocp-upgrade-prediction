@@ -1,5 +1,7 @@
 # Proof of concept - Predict OCP cluster upgrade failures
 
+[![Build Status](https://travis-ci.org/fabric8-analytics/poc-ocp-upgrade-prediction.svg?branch=master)](https://travis-ci.org/fabric8-analytics/poc-ocp-upgrade-prediction)
+
 ## Initial Setup and configuration
 
 ### Setting up a local graph instance
@@ -26,7 +28,7 @@
 
 ### Build instructions
 
-- You need a fairly recent version of Go (1.11.x, 1.12.x)
+- You need a recent version of Go (1.12.x)
 - You'll need to increase your git max buffer size: `git config http.postBuffer 524288000`
 - For the python bits, Python 3.6 is required. You would additionally need `Flask` and `requests`. Install these with `pip install flask requests`
 - This project uses the new vgo(go modules) dependency management system, simply running `make build` with fetch all the dependencies
