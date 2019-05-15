@@ -39,7 +39,8 @@ def main():
         required=True,
     )
     if os.environ.get("GH_TOKEN") == None:
-        os.Exit("No GH_TOKEN available in environment.")
+        import sys
+        sys.exit("No GH_TOKEN available in environment.")
     args = parser.parse_args()
     # First get all the repositories that are required to be forked.
     process = subprocess.run(
