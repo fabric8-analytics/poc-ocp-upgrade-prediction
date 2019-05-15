@@ -57,7 +57,6 @@ def main():
     )
     cluster_payload = json.loads(process.stdout)
     service_arr = cluster_payload.get("references", {}).get("spec", {}).get("tags", {})
-    clusterversion = cluster_payload.get("digest", "")
     fork_repos(service_arr, args)
 
 
