@@ -25,8 +25,10 @@ func AddImportToFile(file string) ([]byte, error) {
 
 	// This never fails, because its failure means that a module is already imported.
 	astutil.AddNamedImport(fset, f, "godefaultruntime", "runtime")
-	astutil.AddNamedImport(fset, f, "godefaulthttp", "net/http")
-	astutil.AddNamedImport(fset, f, "godefaultbytes", "bytes")
+	astutil.AddNamedImport(fset, f, "goformat", "fmt")
+	astutil.AddNamedImport(fset, f, "gotime", "time")
+	astutil.AddNamedImport(fset, f, "goos", "os")
+
 	// Generate the code
 	src, err := generateFile(fset, f)
 	if err != nil {
@@ -100,7 +102,7 @@ func AppendExpr(file string) ([]byte, error) {
 
 // createNewNodes creates Append statements.
 func createNewNodes() []ast.Stmt {
-	expr, err := parser.ParseExpr("func() {_logClusterCodePath();defer _logClusterCodePath();}")
+	expr, err := parser.ParseExpr(`func() {_logClusterCodePath("Entered function: ");defer _logClusterCodePath("Exited function: ");}`)
 
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
@@ -130,10 +132,9 @@ func addFuncToSource(filePath, appendCode string) string {
 var codetoadd = `
 package dummy
 
-func _logClusterCodePath() {
+func _logClusterCodePath(op string) {
     // Skip this function, and fetch the PC and file for its parent
     pc, _, _, _ := godefaultruntime.Caller(1);
-    jsonLog := []byte("{\"fn\": \"" + godefaultruntime.FuncForPC(pc).Name() + "\"}")
-    godefaulthttp.Post("REMOTE_SERVER_URL" + "logcode", "application/json", godefaultbytes.NewBuffer(jsonLog))
+    goformat.Fprintf(goos.Stderr, "[%v][ANALYTICS] %s%s\n", gotime.Now().UTC(), op, godefaultruntime.FuncForPC(pc).Name())
 }
 `
