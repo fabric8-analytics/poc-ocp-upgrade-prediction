@@ -15,4 +15,4 @@ echo "We are in dir: `pwd`"
 ./src/test/resources/install-gremlin-server.sh
 
 echo "Changing channelizer for gremlin server"
-sed -i '' 's/WebSocketChannelizer/WsAndHttpChannelizer/g' server/dynamodb-janusgraph-storage-backend-1.2.0/conf/gremlin-server/gremlin-server-local.yaml
+sed -i  's/WebSocketChannelizer/WsAndHttpChannelizer/g' server/dynamodb-janusgraph-storage-backend-1.2.0/conf/gremlin-server/gremlin-server-local.yaml
