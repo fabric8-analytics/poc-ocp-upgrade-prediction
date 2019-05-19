@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"go/ast"
 	"go/parser"
-	"go/printer"
+	"go/format"
 	"go/token"
 	"os"
 
@@ -21,7 +21,7 @@ var sugarLogger = loggertra.Sugar()
 func AddImportToFile(file string) ([]byte, error) {
 	// Create the AST by parsing src
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, file, nil, 0)
+	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 
 	// This never fails, because its failure means that a module is already imported.
 	astutil.AddNamedImport(fset, f, "godefaultruntime", "runtime")
@@ -54,11 +54,7 @@ func AddImportToFile(file string) ([]byte, error) {
 func generateFile(fset *token.FileSet, file *ast.File) ([]byte, error) {
 	var output []byte
 	buffer := bytes.NewBuffer(output)
-	cfg := printer.Config{
-		Mode:     printer.TabIndent | printer.SourcePos,
-		Tabwidth: 4,
-	}
-	if err := cfg.Fprint(buffer, fset, file); err != nil {
+	if err := format.Node(buffer, fset, file); err != nil {
 		return nil, err
 	}
 
