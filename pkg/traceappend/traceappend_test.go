@@ -1,6 +1,9 @@
 package traceappend
 
 import (
+	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -41,4 +44,49 @@ func TestAppendExpr(t *testing.T) {
 		})
 	}
 	os.Remove("./testdata/testexprappend_bkp.go")
+}
+
+func Test_addContextArgumentToFunction(t *testing.T) {
+	file, err := ioutil.TempFile("/tmp", "prefix")
+	testProgram := `package main
+
+	func main() {
+		go func() {}()
+		someLibFunctThatAcceptsHOF(func() {})
+	}
+
+	func alreadyHasContext(ctx context.Context) {}
+
+	func regularFunc() {}
+	`
+	file.Write([]byte(testProgram))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	type args struct {
+		filePath string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "All the corner cases",
+			args: args{
+				filePath: file.Name(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addContextArgumentToFunction(tt.args.filePath)
+			buf, err := ioutil.ReadFile(file.Name())
+			if err != nil {
+				fmt.Printf("Got error while reading output file, failing test. Error: %v\n", err)
+			}
+			fmt.Printf("%v\n", string(buf))
+		})
+	}
 }

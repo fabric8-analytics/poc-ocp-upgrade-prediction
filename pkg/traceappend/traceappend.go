@@ -134,3 +134,69 @@ func _logClusterCodePath(op string) {
     goformat.Fprintf(goos.Stderr, "[%v][ANALYTICS] %s%s\n", gotime.Now().UTC(), op, godefaultruntime.FuncForPC(pc).Name())
 }
 `
+
+// addContextArgumentToFunction function adds a new context parameter to all functions that are not anonymous, self executing functions
+// unless there is already a context parameter passed in which case the variable name of the context parameter is returned.
+// This is required for tracing intra-process context with opentracing.
+func addContextArgumentToFunction(filePath string) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filePath, nil, 0)
+	if err != nil {
+		slogger.Errorf("Got error: %v\n, failed to patch source file: %s", err, filePath)
+	}
+
+	astutil.Apply(f, func(c *astutil.Cursor) bool {
+		switch t := c.Node().(type) {
+
+		case *ast.FuncDecl:
+			// Do not patch any main/init functions.
+			params := t.Type.Params
+			contextArgument := ast.Field{
+				Names: []*ast.Ident{
+					&ast.Ident{
+						Name: "ctx",
+						Obj: &ast.Object{
+							Kind: ast.Var,
+							Name: "ctx",
+						},
+					},
+				},
+				Type: &ast.SelectorExpr{
+					X: &ast.Ident{
+						Name: "context",
+					},
+					Sel: &ast.Ident{
+						Name: "Context",
+					},
+				},
+			}
+			// TODO: check if context argument already present.
+			if len(params.List) > 0 {
+				c.Node().(*ast.FuncDecl).Type.Params.List = append([]*ast.Field{
+					&contextArgument,
+				}, params.List...)
+			} else {
+				c.Node().(*ast.FuncDecl).Type.Params.List = []*ast.Field{&contextArgument}
+			}
+		}
+		return true
+	}, nil)
+
+	// Generate the code
+	src, err := generateFile(fset, f)
+	if err != nil {
+		sugarLogger.Error(err)
+	}
+
+	fo, err := os.OpenFile(filePath, os.O_WRONLY, 0644)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+
+	_, err = fo.Write(src)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+	// Don't care for any closing errors.
+	fo.Close()
+}
