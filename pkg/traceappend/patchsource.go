@@ -54,7 +54,7 @@ func PatchSource(sourcePath string) {
 
 func patchFile(filePath string, addFunc bool) error {
 	if addFunc {
-		patched, err := AddImportToFile(filePath)
+		patched, err := AddOpenTracingImportToFile(filePath)
 
 		if err != nil {
 			return err
@@ -65,19 +65,6 @@ func patchFile(filePath string, addFunc bool) error {
 		if err != nil {
 			return err
 		}
-
-		// Change REMOTE_SERVER_URL in the code we have to add.
-		url, exists := os.LookupEnv("REMOTE_SERVER_URL")
-
-		if !exists {
-			slogger.Fatalf("REMOTE_SERVER_URL does not exist in environment.")
-		}
-		// This is ugly but go's url thing sucks.
-		if !strings.HasSuffix(url, "/") {
-			url += "/"
-		}
-		URLAddedCode := strings.ReplaceAll(string(codetoadd), "REMOTE_SERVER_URL", url)
-		utils.WriteStringToFile(filePath, addFuncToSource(filePath, URLAddedCode))
 	}
 
 	patched, err := AppendExpr(filePath)
@@ -85,6 +72,12 @@ func patchFile(filePath string, addFunc bool) error {
 		return err
 	}
 	err = utils.WriteStringToFile(filePath, string(patched))
+
+	// Add a context parameter to all functions.
+	addContextArgumentToFunction(filePath)
+
+	// Add a context parameter as the first argument to all function calls.
+	AddContextToCallExpressions(filePath)
 
 	// If err is nil, nil will be returned.
 	return err

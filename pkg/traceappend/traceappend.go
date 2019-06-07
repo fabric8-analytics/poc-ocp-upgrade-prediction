@@ -5,10 +5,12 @@ package traceappend
 import (
 	"bytes"
 	"go/ast"
-	"go/parser"
 	"go/format"
+	"go/parser"
 	"go/token"
 	"os"
+
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
 
 	"go.uber.org/zap"
 	"golang.org/x/tools/go/ast/astutil"
@@ -74,8 +76,8 @@ func AppendExpr(file string) ([]byte, error) {
 	fset = token.NewFileSet()
 
 	astutil.Apply(f, func(c *astutil.Cursor) bool {
-		parent, ok := c.Parent().(*ast.FuncDecl)
-		if ok && parent.Name.Name != "_logClusterCodePath" {
+		_, ok := c.Parent().(*ast.FuncDecl)
+		if ok {
 			bodyList, ok := c.Node().(*ast.BlockStmt)
 			if ok {
 				count++
@@ -98,7 +100,20 @@ func AppendExpr(file string) ([]byte, error) {
 
 // createNewNodes creates Append statements.
 func createNewNodes() []ast.Stmt {
-	expr, err := parser.ParseExpr(`func() {_logClusterCodePath("Entered function: ");defer _logClusterCodePath("Exited function: ");}`)
+	expr, err := parser.ParseExpr(`func() {	if ctx == nil {
+		ctx = context.Background()
+	}
+	pc := make([]uintptr, 10) // at least 1 entry needed
+	runtime.Callers(2, pc)
+	fn := runtime.FuncForPC(pc[0])
+	span, ctx := opentracing.StartSpanFromContext(ctx, fn.Name())
+
+	defer span.Finish()
+	span.LogFields(
+		log.String("event", "entered function"),
+		log.String("value", fn.Name()),
+	)
+	}`)
 
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
@@ -151,6 +166,14 @@ func addContextArgumentToFunction(filePath string) {
 		case *ast.FuncDecl:
 			// Do not patch any main/init functions.
 			params := t.Type.Params
+			contextSelectorExpr := ast.SelectorExpr{
+				X: &ast.Ident{
+					Name: "context",
+				},
+				Sel: &ast.Ident{
+					Name: "Context",
+				},
+			}
 			contextArgument := ast.Field{
 				Names: []*ast.Ident{
 					&ast.Ident{
@@ -161,14 +184,7 @@ func addContextArgumentToFunction(filePath string) {
 						},
 					},
 				},
-				Type: &ast.SelectorExpr{
-					X: &ast.Ident{
-						Name: "context",
-					},
-					Sel: &ast.Ident{
-						Name: "Context",
-					},
-				},
+				Type: &contextSelectorExpr,
 			}
 			// TODO: check if context argument already present.
 			if len(params.List) > 0 {
@@ -177,6 +193,96 @@ func addContextArgumentToFunction(filePath string) {
 				}, params.List...)
 			} else {
 				c.Node().(*ast.FuncDecl).Type.Params.List = []*ast.Field{&contextArgument}
+			}
+		}
+		return true
+	}, nil)
+
+	// Generate the code
+	src, err := generateFile(fset, f)
+	if err != nil {
+		sugarLogger.Error(err)
+	}
+
+	fo, err := os.OpenFile(filePath, os.O_WRONLY, 0644)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+
+	_, err = fo.Write(src)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+	// Don't care for any closing errors.
+	fo.Close()
+}
+
+// AddOpenTracingImportToFile will be used to import opentracing objects for runtime path logging.
+func AddOpenTracingImportToFile(file string) ([]byte, error) {
+	// Create the AST by parsing src
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
+
+	// This never fails, because its failure means that a module is already imported.
+	astutil.AddNamedImport(fset, f, "opentracing", "github.com/opentracing/opentracing-go")
+	astutil.AddImport(fset, f, "github.com/opentracing/opentracing-go/log")
+	astutil.AddImport(fset, f, "context")
+	// Generate the code
+	src, err := generateFile(fset, f)
+	if err != nil {
+		sugarLogger.Error(err)
+		return nil, err
+	}
+
+	fo, err := os.OpenFile(file, os.O_WRONLY, 0644)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+
+	_, err = fo.Write(src)
+	if err != nil {
+		sugarLogger.Errorf("%v\n", err)
+	}
+	// Don't care for any closing errors.
+	fo.Close()
+	return src, err
+}
+
+func getExprForObject() ast.Expr {
+	expr, err := parser.ParseExpr("ctx")
+	if err != nil {
+		slogger.Errorf("Got error: %v\n", err)
+	}
+	return expr
+}
+
+// AddContextToCallExpressions adds our context argument as the first parameter in the function call.
+func AddContextToCallExpressions(filePath string) {
+	// Create the AST by parsing src
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, filePath, nil, parser.ParseComments)
+
+	astutil.Apply(f, func(c *astutil.Cursor) bool {
+		switch t := c.Node().(type) {
+		case *ast.CallExpr:
+			// Do not patch any main/init functions.
+			if t.Fun.(*ast.Ident).Name == "main" || t.Fun.(*ast.Ident).Name == "init" {
+				return true
+			}
+			// Don't patch any builtins.
+			if _, exists := serviceparser.Builtins[t.Fun.(*ast.Ident).Name]; exists {
+				return true
+			}
+			// Don't patch any library functions.
+
+			contextArgument := getExprForObject()
+			// TODO: check if context argument already present.
+			if len(t.Args) > 0 {
+				c.Node().(*ast.CallExpr).Args = append([]ast.Expr{
+					contextArgument,
+				}, t.Args...)
+			} else {
+				c.Node().(*ast.CallExpr).Args = []ast.Expr{contextArgument}
 			}
 		}
 		return true

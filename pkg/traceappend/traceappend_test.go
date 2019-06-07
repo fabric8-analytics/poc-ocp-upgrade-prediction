@@ -90,3 +90,50 @@ func Test_addContextArgumentToFunction(t *testing.T) {
 		})
 	}
 }
+
+func TestAddContextToCallExpressions(t *testing.T) {
+	file, err := ioutil.TempFile("/tmp", "prefix")
+	testProgram := `package main
+
+	func main() {
+		go func() {}()
+		var t string
+		someLibFunctThatAcceptsHOF(func() {})
+		somefunction(t)
+	}
+
+	func alreadyHasContext(ctx context.Context) {}
+
+	func regularFunc() {}
+	`
+	file.Write([]byte(testProgram))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	type args struct {
+		filePath string
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		{
+			name: "Test if code is added to function argument.",
+			args: args{
+				filePath: file.Name(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			AddContextToCallExpressions(tt.args.filePath)
+			buf, err := ioutil.ReadFile(file.Name())
+			if err != nil {
+				fmt.Printf("Got error while reading output file, failing test. Error: %v\n", err)
+			}
+			fmt.Printf("%v\n", string(buf))
+		})
+	}
+}
