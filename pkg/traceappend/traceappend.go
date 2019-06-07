@@ -164,8 +164,12 @@ func addContextArgumentToFunction(filePath string) {
 		switch t := c.Node().(type) {
 
 		case *ast.FuncDecl:
-			// Do not patch any main/init functions.
 			params := t.Type.Params
+			// Do not patch any main/init functions.
+			if t.Name.Name == "main" || t.Name.Name == "init" {
+				return true
+			}
+
 			contextSelectorExpr := ast.SelectorExpr{
 				X: &ast.Ident{
 					Name: "context",
@@ -186,7 +190,13 @@ func addContextArgumentToFunction(filePath string) {
 				},
 				Type: &contextSelectorExpr,
 			}
-			// TODO: check if context argument already present.
+			// Check if context argument already present, don't patch.
+			for _, field := range params.List {
+				fieldContextSelector := *(field.Type.(*ast.SelectorExpr))
+				if fieldContextSelector.X.(*ast.Ident).Name == contextSelectorExpr.X.(*ast.Ident).Name && fieldContextSelector.Sel.Name == contextSelectorExpr.Sel.Name {
+					return true
+				}
+			}
 			if len(params.List) > 0 {
 				c.Node().(*ast.FuncDecl).Type.Params.List = append([]*ast.Field{
 					&contextArgument,
@@ -276,7 +286,7 @@ func AddContextToCallExpressions(filePath string) {
 			// Don't patch any library functions.
 
 			contextArgument := getExprForObject()
-			// TODO: check if context argument already present.
+			// TODO: check if context argument already passed.
 			if len(t.Args) > 0 {
 				c.Node().(*ast.CallExpr).Args = append([]ast.Expr{
 					contextArgument,
