@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"go/build"
 	"io"
 	"net/http"
 	"net/url"
@@ -261,4 +262,28 @@ func GetServiceVersion(dirpath string) string {
 		sugarLogger.Fatal(err)
 	}
 	return strings.Trim(string(output), "\n ")
+}
+
+// IsGeneratedCode tells you whether a file is generated and should be ignored for patching.
+func IsGeneratedCode(fileContent string) bool {
+	re := regexp.MustCompile(`(?s)^// Code generated.*DO NOT EDIT`)
+	matches := re.FindStringIndex(fileContent)
+	if len(matches) != 0 {
+		return true
+	}
+	return false
+}
+
+// IsIgnoredFileName ignores things that have a suffix for filename other than _linux.
+func IsIgnoredFileName(builddir, filename string) bool {
+	ctx := build.Context{
+		GOOS:   "linux",
+		GOPATH: os.Getenv("GOPATH"),
+		GOROOT: os.Getenv("GOROOT"),
+	}
+	match, err := ctx.MatchFile(builddir, filename)
+	if err != nil {
+		sugarLogger.Fatalf("Cannot proceed, failed to determine whether file %s should be ignored. Error: %v\n", filename, err)
+	}
+	return !match
 }
