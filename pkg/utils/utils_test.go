@@ -166,3 +166,43 @@ func TestIsIgnoredFileName(t *testing.T) {
 		})
 	}
 }
+
+func TestIsRestrictedDir(t *testing.T) {
+	type args struct {
+		dirname string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "Test .git directory is ignored",
+			args: args{
+				dirname: ".git",
+			},
+			want: true,
+		},
+		{
+			name: "Test tests directory is ignored",
+			args: args{
+				dirname: "test",
+			},
+			want: true,
+		},
+		{
+			name: "Test a generic directory is not ignored",
+			args: args{
+				dirname: "lolnogenerics",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsRestrictedDir(tt.args.dirname); got != tt.want {
+				t.Errorf("IsRestrictedDir() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

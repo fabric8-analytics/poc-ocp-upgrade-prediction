@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 
@@ -15,13 +14,13 @@ var logger, _ = zap.NewDevelopment()
 var slogger = logger.Sugar()
 
 // PatchSource patches a source path to add tracing.
-func PatchSource(sourcePath string) {
+func PatchSource(sourcePath, appendFuncPath, prependStatementsPath string) {
 	addedTracer := make(map[string]bool)
 	slogger.Infof("Patching sourcePath: %v\n", sourcePath)
 	err := filepath.Walk(sourcePath, func(path string, f os.FileInfo, err error) error {
 		// Don't patch vendor and .git for now.
 		fmt.Printf("%v %v\n", f.Name(), path)
-		if f.IsDir() && (f.Name() == ".git" || f.Name() == "third_party" || f.Name() == "bindata" || f.Name() == "generated" || f.Name() == "test" || f.Name() == "staging" || f.Name() == "oc" || f.Name() == "proc" || f.Name() == "tools") {
+		if f.IsDir() && !utils.IsRestrictedDir(f.Name()) {
 			return filepath.SkipDir
 		}
 
@@ -31,8 +30,7 @@ func PatchSource(sourcePath string) {
 				return filepath.SkipDir
 			}
 		}
-		// No need to patch unit tests.
-		if filepath.Ext(path) == ".go" && !strings.HasSuffix(filepath.Base(path), "_test.go") && !strings.Contains(path, "bindata") && !strings.Contains(path, "generated") && !strings.Contains(path, "doc.go") {
+		if !utils.IsIgnoredFile(path) {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
 			_, hasTracer := addedTracer[dirName]
@@ -43,6 +41,8 @@ func PatchSource(sourcePath string) {
 			if !hasTracer {
 				addedTracer[dirName] = true
 			}
+		} else {
+			slogger.Infof("Skipping ignored file: %s\n", path)
 		}
 		return nil
 	})
@@ -74,7 +74,7 @@ func patchFile(filePath string, addFunc bool) error {
 	err = utils.WriteStringToFile(filePath, string(patched))
 
 	// Add a context parameter to all functions.
-	addContextArgumentToFunction(filePath)
+	addContextArgumentToFuncDecl(filePath)
 
 	// Add a context parameter as the first argument to all function calls.
 	AddContextToCallExpressions(filePath)

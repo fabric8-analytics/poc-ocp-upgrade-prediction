@@ -4,6 +4,7 @@ package traceappend
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -70,7 +71,19 @@ func AppendExpr(file string) ([]byte, error) {
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
 	}
-	deferNode := createNewNodes()
+	deferNode := createNewNodes(`
+				if ctx == nil {
+					ctx = context.Background()
+				}
+				pc := make([]uintptr, 10) // at least 1 entry needed
+				runtime.Callers(2, pc)
+				fn := runtime.FuncForPC(pc[0])
+				span, ctx := opentracing.StartSpanFromContext(ctx, fn.Name())
+				defer span.Finish()
+				span.LogFields(
+						log.String("event", "entered function"),
+						log.String("value", fn.Name()),
+				)`)
 
 	count := 0
 	fset = token.NewFileSet()
@@ -99,21 +112,9 @@ func AppendExpr(file string) ([]byte, error) {
 }
 
 // createNewNodes creates Append statements.
-func createNewNodes() []ast.Stmt {
-	expr, err := parser.ParseExpr(`func() {	if ctx == nil {
-		ctx = context.Background()
-	}
-	pc := make([]uintptr, 10) // at least 1 entry needed
-	runtime.Callers(2, pc)
-	fn := runtime.FuncForPC(pc[0])
-	span, ctx := opentracing.StartSpanFromContext(ctx, fn.Name())
-
-	defer span.Finish()
-	span.LogFields(
-		log.String("event", "entered function"),
-		log.String("value", fn.Name()),
-	)
-	}`)
+func createNewNodes(expressionCode string) []ast.Stmt {
+	expr, err := parser.ParseExpr(
+		fmt.Sprintf(`func() { %s }`, expressionCode))
 
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
@@ -122,7 +123,8 @@ func createNewNodes() []ast.Stmt {
 	return expr.(*ast.FuncLit).Body.List
 }
 
-func addFuncToSource(filePath, appendCode string) string {
+// AddFuncToSource adds a function to a file.
+func AddFuncToSource(filePath, appendCode string) string {
 	fset1 := token.NewFileSet()
 	fset2 := token.NewFileSet()
 
@@ -150,10 +152,10 @@ func _logClusterCodePath(op string) {
 }
 `
 
-// addContextArgumentToFunction function adds a new context parameter to all functions that are not anonymous, self executing functions
+// addContextArgumentToFuncDecl function adds a new context parameter to all functions that are not anonymous, self executing functions
 // unless there is already a context parameter passed in which case the variable name of the context parameter is returned.
 // This is required for tracing intra-process context with opentracing.
-func addContextArgumentToFunction(filePath string) {
+func addContextArgumentToFuncDecl(filePath string) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filePath, nil, 0)
 	if err != nil {

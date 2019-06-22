@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/build"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -239,7 +240,7 @@ func RunCmdWithWait(cmd *exec.Cmd) (string, string) {
 	return outStr, errStr
 }
 
-// WriteStringToFile, writes string s to filepath
+// WriteStringToFile writes string s to filepath
 func WriteStringToFile(filepath, s string) error {
 	fo, err := os.Create(filepath)
 	if err != nil {
@@ -286,4 +287,35 @@ func IsIgnoredFileName(builddir, filename string) bool {
 		sugarLogger.Fatalf("Cannot proceed, failed to determine whether file %s should be ignored. Error: %v\n", filename, err)
 	}
 	return !match
+}
+
+// IsIgnoredFile is a utility that combines all the different ignore clauses because I don't like large if conditions everywhere.
+func IsIgnoredFile(filePath string) bool {
+	dir, filename := filepath.Split(filePath)
+	if filepath.Ext(filePath) != ".go" {
+		return true
+	}
+	if IsIgnoredFileName(dir, filename) {
+		return true
+	}
+	content, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		sugarLogger.Fatalf("Could not open file: %s for reading, cannot patch. Got error: %v\n", filePath, err)
+	}
+	// Skip test files
+	if strings.HasSuffix(filename, "_test.go") {
+		return true
+	}
+	if IsGeneratedCode(string(content)) {
+		return true
+	}
+	return false
+}
+
+// IsRestrictedDir tells us whether a particular directory should be skipped.
+func IsRestrictedDir(dirname string) bool {
+	// Map because this language has no sets. I know, very ugly.
+	skipList := map[string]bool{".git": true, "third_party": true, "test": true, "staging": true, "tools": true}
+	_, isPresent := skipList[dirname]
+	return isPresent
 }
