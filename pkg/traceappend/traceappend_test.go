@@ -48,6 +48,9 @@ func TestAppendExpr(t *testing.T) {
 
 func Test_addContextArgumentToFunction(t *testing.T) {
 	file, err := ioutil.TempFile("/tmp", "prefix")
+	if err != nil {
+		log.Fatal(err)
+	}
 	testProgram := `package main
 
 	func main() {
@@ -60,9 +63,6 @@ func Test_addContextArgumentToFunction(t *testing.T) {
 	func regularFunc() {}
 	`
 	file.Write([]byte(testProgram))
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer os.Remove(file.Name())
 
 	type args struct {
@@ -81,7 +81,7 @@ func Test_addContextArgumentToFunction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addContextArgumentToFunction(tt.args.filePath)
+			addContextArgumentToFuncDecl(tt.args.filePath)
 			buf, err := ioutil.ReadFile(file.Name())
 			if err != nil {
 				fmt.Printf("Got error while reading output file, failing test. Error: %v\n", err)
@@ -93,6 +93,9 @@ func Test_addContextArgumentToFunction(t *testing.T) {
 
 func TestAddContextToCallExpressions(t *testing.T) {
 	file, err := ioutil.TempFile("/tmp", "prefix")
+	if err != nil {
+		log.Fatal(err)
+	}
 	testProgram := `package main
 
 	func main() {
@@ -107,9 +110,6 @@ func TestAddContextToCallExpressions(t *testing.T) {
 	func regularFunc() {}
 	`
 	file.Write([]byte(testProgram))
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer os.Remove(file.Name())
 
 	type args struct {

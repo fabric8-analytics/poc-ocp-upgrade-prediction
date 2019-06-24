@@ -15,10 +15,12 @@ func main() {
 	PrePendStatementsPtr := flag.String("prepend-statements", "", "Path to file containing the statements to prepend to each and every function's statement body.")
 	flag.Parse()
 
-	if *sourceDirPtr == "" || *appendFunctionsPtr == "" || *PrePendStatementsPtr == "" {
+	if *sourceDirPtr == "" {
 		fmt.Fprintf(os.Stderr, "Could not run binary, usage: patchsource --source-dir=[sourcedir] --append-functions [filepath] --prepend-statements [filepath]\n")
 		os.Exit(1)
 	}
+
+	fmt.Println(appendFunctionsPtr)
 
 	traceappend.PatchSource(*sourceDirPtr, *appendFunctionsPtr, *PrePendStatementsPtr)
 }

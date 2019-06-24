@@ -2,6 +2,7 @@ package traceappend
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -34,7 +35,7 @@ func PatchSource(sourcePath, appendFuncPath, prependStatementsPath string) {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
 			_, hasTracer := addedTracer[dirName]
-			err = patchFile(path, !hasTracer)
+			err = patchFile(path, appendFuncPath, prependStatementsPath, appendFuncPath != "" && !hasTracer, true, prependStatementsPath != "")
 			if err != nil {
 				return err
 			}
@@ -52,9 +53,48 @@ func PatchSource(sourcePath, appendFuncPath, prependStatementsPath string) {
 	}
 }
 
-func patchFile(filePath string, addFunc bool) error {
+func patchFile(filePath, appendFuncPath, prependStatementPath string, addFunc bool, addImport bool, addExpressions bool) error {
+
 	if addFunc {
-		patched, err := AddOpenTracingImportToFile(filePath)
+		// Get the functions to be appended.
+		funcAppendContent, err := ioutil.ReadFile(appendFuncPath)
+		if err != nil {
+			return err
+		}
+		funcAppendString := string(funcAppendContent)
+		patched := AddFuncToSource(filePath, funcAppendString)
+		err = utils.WriteStringToFile(filePath, string(patched))
+		if err != nil {
+			return err
+		}
+	}
+
+	if addExpressions {
+		// Get the expressions to be appended.
+		exprAppendContent, err := ioutil.ReadFile(appendFuncPath)
+		if err != nil {
+			return err
+		}
+		exprAppendString := string(exprAppendContent)
+
+		patched, err := AppendExpr(filePath, exprAppendString)
+		if err != nil {
+			return err
+		}
+		err = utils.WriteStringToFile(filePath, string(patched))
+		if err != nil {
+			return err
+		}
+	}
+
+	if addImport {
+		importsListPrintParent := map[string]string{
+			"godefaultruntime": "runtime",
+			"goformat":         "fmt",
+			"gotime":           "time",
+			"goos":             "os",
+		}
+		patched, err := AddImportToFile(filePath, importsListPrintParent)
 
 		if err != nil {
 			return err
@@ -66,19 +106,5 @@ func patchFile(filePath string, addFunc bool) error {
 			return err
 		}
 	}
-
-	patched, err := AppendExpr(filePath)
-	if err != nil {
-		return err
-	}
-	err = utils.WriteStringToFile(filePath, string(patched))
-
-	// Add a context parameter to all functions.
-	addContextArgumentToFuncDecl(filePath)
-
-	// Add a context parameter as the first argument to all function calls.
-	AddContextToCallExpressions(filePath)
-
-	// If err is nil, nil will be returned.
-	return err
+	return nil
 }

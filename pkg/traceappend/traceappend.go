@@ -20,17 +20,16 @@ import (
 var loggertra, _ = zap.NewDevelopment()
 var sugarLogger = loggertra.Sugar()
 
-// AddImportToFile will be used to import G, O objects for logging.
-func AddImportToFile(file string) ([]byte, error) {
+// AddImportToFile adds a bunch of named imports to a file, picking up form a K, V style map.
+func AddImportToFile(file string, importDict map[string]string) ([]byte, error) {
 	// Create the AST by parsing src
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 
 	// This never fails, because its failure means that a module is already imported.
-	astutil.AddNamedImport(fset, f, "godefaultruntime", "runtime")
-	astutil.AddNamedImport(fset, f, "goformat", "fmt")
-	astutil.AddNamedImport(fset, f, "gotime", "time")
-	astutil.AddNamedImport(fset, f, "goos", "os")
+	for importname, importpath := range importDict {
+		astutil.AddNamedImport(fset, f, importname, importpath)
+	}
 
 	// Generate the code
 	src, err := generateFile(fset, f)
@@ -65,25 +64,13 @@ func generateFile(fset *token.FileSet, file *ast.File) ([]byte, error) {
 }
 
 // AppendExpr modifies an AST by adding an expr at the start of its body.
-func AppendExpr(file string) ([]byte, error) {
+func AppendExpr(file string, nodeContent string) ([]byte, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, file, nil, 0)
 	if err != nil {
 		sugarLogger.Errorf("%v\n", err)
 	}
-	deferNode := createNewNodes(`
-				if ctx == nil {
-					ctx = context.Background()
-				}
-				pc := make([]uintptr, 10) // at least 1 entry needed
-				runtime.Callers(2, pc)
-				fn := runtime.FuncForPC(pc[0])
-				span, ctx := opentracing.StartSpanFromContext(ctx, fn.Name())
-				defer span.Finish()
-				span.LogFields(
-						log.String("event", "entered function"),
-						log.String("value", fn.Name()),
-				)`)
+	deferNode := createNewNodes(nodeContent)
 
 	count := 0
 	fset = token.NewFileSet()
@@ -100,7 +87,7 @@ func AppendExpr(file string) ([]byte, error) {
 		}
 		return true
 	}, nil)
-	sugarLogger.Infof("Total tracers appended: %d\n", count)
+	sugarLogger.Infof("Total functions modified: %d\n", count)
 	// Generate the code
 	src, err := generateFile(fset, f)
 	if err != nil {
@@ -142,7 +129,7 @@ func AddFuncToSource(filePath, appendCode string) string {
 	return string(content)
 }
 
-var codetoadd = `
+var printParentCode = `
 package dummy
 
 func _logClusterCodePath(op string) {
@@ -151,6 +138,20 @@ func _logClusterCodePath(op string) {
     goformat.Fprintf(goos.Stderr, "[%v][ANALYTICS] %s%s\n", gotime.Now().UTC(), op, godefaultruntime.FuncForPC(pc).Name())
 }
 `
+
+var openTracingSource = `
+if ctx == nil {
+	ctx = context.Background()
+}
+pc := make([]uintptr, 10) // at least 1 entry needed
+runtime.Callers(2, pc)
+fn := runtime.FuncForPC(pc[0])
+span, ctx := opentracing.StartSpanFromContext(ctx, fn.Name())
+defer span.Finish()
+span.LogFields(
+		log.String("event", "entered function"),
+		log.String("value", fn.Name()),
+)`
 
 // addContextArgumentToFuncDecl function adds a new context parameter to all functions that are not anonymous, self executing functions
 // unless there is already a context parameter passed in which case the variable name of the context parameter is returned.
@@ -232,32 +233,12 @@ func addContextArgumentToFuncDecl(filePath string) {
 // AddOpenTracingImportToFile will be used to import opentracing objects for runtime path logging.
 func AddOpenTracingImportToFile(file string) ([]byte, error) {
 	// Create the AST by parsing src
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
-
-	// This never fails, because its failure means that a module is already imported.
-	astutil.AddNamedImport(fset, f, "opentracing", "github.com/opentracing/opentracing-go")
-	astutil.AddImport(fset, f, "github.com/opentracing/opentracing-go/log")
-	astutil.AddImport(fset, f, "context")
-	// Generate the code
-	src, err := generateFile(fset, f)
-	if err != nil {
-		sugarLogger.Error(err)
-		return nil, err
+	importList := map[string]string{
+		"opentracing":    "github.com/opentracing/opentracing-go",
+		"opentracinglog": "github.com/opentracing/opentracing-go/log",
+		"context":        "context",
 	}
-
-	fo, err := os.OpenFile(file, os.O_WRONLY, 0644)
-	if err != nil {
-		sugarLogger.Errorf("%v\n", err)
-	}
-
-	_, err = fo.Write(src)
-	if err != nil {
-		sugarLogger.Errorf("%v\n", err)
-	}
-	// Don't care for any closing errors.
-	fo.Close()
-	return src, err
+	return AddImportToFile(file, importList)
 }
 
 func getExprForObject() ast.Expr {
@@ -286,6 +267,7 @@ func AddContextToCallExpressions(filePath string) {
 				return true
 			}
 			// Don't patch any library functions.
+			// TODO
 
 			contextArgument := getExprForObject()
 			// TODO: check if context argument already passed.
