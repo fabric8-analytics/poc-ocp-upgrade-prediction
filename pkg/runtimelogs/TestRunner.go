@@ -5,8 +5,6 @@ import (
 	"os/exec"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
-
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/traceappend"
 )
 
 // RunE2ETestsInGopath does exactly what's advertised- Run the component E2E tests and generate an logfile.
@@ -16,8 +14,6 @@ func RunE2ETestsInGoPath(srcdir, gopath string) string {
 	cmd.Env = append(cmd.Env, "GOPATH="+gopath+":/private/tmp")
 	cmd.Env = append(cmd.Env, "PATH="+os.Getenv("PATH"))
 	cmd.Dir = srcdir
-
-	traceappend.PatchSource(srcdir)
 
 	depOut, depErr := utils.RunCmdWithWait(cmd)
 

@@ -32,6 +32,8 @@ func main() {
 	noImages := flag.Bool("no-images", false, "Whether container images need to be built")
 	username := flag.String("user-name", "", "The Github user name of the user whose token is set for GH_TOKEN")
 	destdirPtr := flag.String("destdir", "", "The directory where the repositories need to be cloned.")
+	appendFunctionsPtr := flag.String("append-functions", "", "Path to a go file containing the functions to append to every package.")
+	PrePendStatementsPtr := flag.String("prepend-statements", "", "Path to file containing the statements to prepend to each and every function's statement body.")
 	// noClone = flag.String("no-clone", false, "Whether clones already exist in [DESTDIR]")
 
 	flag.Parse()
@@ -47,7 +49,7 @@ func main() {
 			slogger.Errorf("%v\n", err)
 		}
 		for _, fileInf := range srcDirList {
-			traceappend.PatchSource(filepath.Join(*repoSourceDir, fileInf.Name()))
+			traceappend.PatchSource(filepath.Join(*repoSourceDir, fileInf.Name()), *appendFunctionsPtr, *PrePendStatementsPtr)
 		}
 	} else if payloadVersion != nil && *payloadVersion != "" {
 		slogger.Infof("Running flow for cluster version option.")
@@ -96,7 +98,7 @@ func main() {
 				serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
 
 			// Now run the source code patching script.
-			traceappend.PatchSource(serviceRoot)
+			traceappend.PatchSource(serviceRoot, *appendFunctionsPtr, *PrePendStatementsPtr)
 
 			if *noImages {
 				continue
