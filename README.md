@@ -55,6 +55,29 @@ curl -X GET \
     "repo_url": "openshift/machine-config-operator/"
 }'
 ```
+### Patching source code to add imports/functions and prepend statements: patchsource
+* The patchsource binary takes in a source directory and a yaml config which contains the imports to be added to each non-ignored package/file etc. and patches all the .go files in the source directory to modify them.
+* Sample yaml:
+```yaml
+imports:
+  godefaultfmt: fmt
+func_add: |
+  func logStatement() {
+    fmt.Println("Hello World.")
+  }
+prepend_body: |
+  logStatement()
+  defer logStatement()
+```
+The above yaml, when saved in a file called `source_config.yaml` and passed to the binary as with:
+```bash
+  $ patchsource --source-dir=[path_to_origin_dir] --code-config-yaml=sources_config.yaml
+```
+will change all packages of the source pointed to by source dir to:
+a) Add imports marked under imports with the name as the key and the importpath as the value to the function, i.e. `godefaultfmt: fmt` becomes `import godefaultfmt "fmt"` in the Go source code.
+b) Prepends the lines in the `prepend_body` key to all the function declarations and the function literal declarations in the go files present in sourcedir.
+c) Adds the function declared under `func_add` to all packages if some logic is required without adding in the overhead of a third party import.
+d) This binary is generic and can be used to patch any golang source code.
 
 ### Payload creation for running the end to end tests: custompayload-creator
 
