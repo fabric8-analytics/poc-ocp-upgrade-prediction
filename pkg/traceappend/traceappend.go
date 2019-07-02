@@ -10,6 +10,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"strings"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
 
@@ -115,6 +116,9 @@ func AddFuncToSource(filePath, appendCode string) string {
 	fset1 := token.NewFileSet()
 	fset2 := token.NewFileSet()
 
+	if !strings.HasPrefix(appendCode, "package") {
+		appendCode = fmt.Sprintf("package dummy\n%s", appendCode)
+	}
 	cf1, err := parser.ParseFile(fset1, "code1.go", appendCode, parser.ParseComments)
 	if err != nil {
 		sugarLogger.Error(err)

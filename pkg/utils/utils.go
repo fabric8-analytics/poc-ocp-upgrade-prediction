@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 var logger, _ = zap.NewDevelopment()
@@ -321,4 +322,26 @@ func IsRestrictedDir(dirname string) bool {
 	skipList := map[string]bool{".git": true, "third_party": true, "test": true, "staging": true, "tools": true}
 	_, isPresent := skipList[dirname]
 	return isPresent
+}
+
+// PatchSourceComponents need to be parsed from the yaml that is supplied to patchsource binary.
+type PatchSourceComponents struct {
+	Imports     map[string]string `yaml:"imports,omitempty"`
+	FuncAdd     string            `yaml:"func_add,omitempty"`
+	PrependBody string            `yaml:"prepend_body,omitempty"`
+}
+
+// ReadCodeFromYaml reads the code for the patchsource binary from a config yaml
+func ReadCodeFromYaml(configYamlPath string) *PatchSourceComponents {
+	var components PatchSourceComponents
+	yamlFile, err := ioutil.ReadFile(configYamlPath)
+	if err != nil {
+		sugarLogger.Errorf("yamlFile.Get err   #%v ", err)
+	}
+	err = yaml.Unmarshal(yamlFile, &components)
+	if err != nil {
+		sugarLogger.Fatalf("Unmarshal: %v", err)
+	}
+
+	return &components
 }

@@ -11,8 +11,7 @@ import (
 
 func main() {
 	sourceDirPtr := flag.String("source-dir", "", "The directory to patch")
-	appendFunctionsPtr := flag.String("append-functions", "", "Path to a go file containing the functions to append to every package.")
-	PrePendStatementsPtr := flag.String("prepend-statements", "", "Path to file containing the statements to prepend to each and every function's statement body.")
+	configYamlPtr := flag.String("code-config-yaml", "", "A yaml containing the code that will be used to modify the original source. See documentation for more details.")
 	flag.Parse()
 
 	if *sourceDirPtr == "" {
@@ -20,5 +19,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	traceappend.PatchSource(*sourceDirPtr, *appendFunctionsPtr, *PrePendStatementsPtr)
+	traceappend.PatchSource(*sourceDirPtr, *configYamlPtr)
 }

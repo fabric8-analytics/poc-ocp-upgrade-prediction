@@ -2,7 +2,6 @@ package traceappend
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -15,7 +14,7 @@ var logger, _ = zap.NewDevelopment()
 var slogger = logger.Sugar()
 
 // PatchSource patches a source path to add tracing.
-func PatchSource(sourcePath, appendFuncPath, prependStatementsPath string) {
+func PatchSource(sourcePath, configYamlPath string) {
 	addedTracer := make(map[string]bool)
 	slogger.Infof("Patching sourcePath: %v\n", sourcePath)
 	err := filepath.Walk(sourcePath, func(path string, f os.FileInfo, err error) error {
@@ -35,7 +34,7 @@ func PatchSource(sourcePath, appendFuncPath, prependStatementsPath string) {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
 			_, hasTracer := addedTracer[dirName]
-			err = patchFile(path, appendFuncPath, prependStatementsPath, appendFuncPath != "" && !hasTracer, true, prependStatementsPath != "")
+			err = patchFile(path, configYamlPath)
 			if err != nil {
 				return err
 			}
@@ -53,31 +52,19 @@ func PatchSource(sourcePath, appendFuncPath, prependStatementsPath string) {
 	}
 }
 
-func patchFile(filePath, appendFuncPath, prependStatementPath string, addFunc bool, addImport bool, addExpressions bool) error {
+func patchFile(filePath, configYamlPath string) error {
 
-	if addFunc {
-		// Get the functions to be appended.
-		funcAppendContent, err := ioutil.ReadFile(appendFuncPath)
-		if err != nil {
-			return err
-		}
-		funcAppendString := string(funcAppendContent)
-		patched := AddFuncToSource(filePath, funcAppendString)
-		err = utils.WriteStringToFile(filePath, string(patched))
+	yamlComponents := utils.ReadCodeFromYaml(configYamlPath)
+	if yamlComponents.FuncAdd != "" {
+		patched := AddFuncToSource(filePath, yamlComponents.FuncAdd)
+		err := utils.WriteStringToFile(filePath, string(patched))
 		if err != nil {
 			return err
 		}
 	}
 
-	if addExpressions {
-		// Get the expressions to be appended.
-		exprAppendContent, err := ioutil.ReadFile(prependStatementPath)
-		if err != nil {
-			return err
-		}
-		exprAppendString := string(exprAppendContent)
-
-		patched, err := AppendExpr(filePath, exprAppendString)
+	if yamlComponents.PrependBody != "" {
+		patched, err := AppendExpr(filePath, yamlComponents.PrependBody)
 		if err != nil {
 			return err
 		}
@@ -87,14 +74,8 @@ func patchFile(filePath, appendFuncPath, prependStatementPath string, addFunc bo
 		}
 	}
 
-	if addImport {
-		importsListPrintParent := map[string]string{
-			"godefaultruntime": "runtime",
-			"goformat":         "fmt",
-			"gotime":           "time",
-			"goos":             "os",
-		}
-		patched, err := AddImportToFile(filePath, importsListPrintParent)
+	if len(yamlComponents.Imports) > 0 {
+		patched, err := AddImportToFile(filePath, yamlComponents.Imports)
 
 		if err != nil {
 			return err
