@@ -71,7 +71,7 @@ func patchFile(filePath, appendFuncPath, prependStatementPath string, addFunc bo
 
 	if addExpressions {
 		// Get the expressions to be appended.
-		exprAppendContent, err := ioutil.ReadFile(appendFuncPath)
+		exprAppendContent, err := ioutil.ReadFile(prependStatementPath)
 		if err != nil {
 			return err
 		}
