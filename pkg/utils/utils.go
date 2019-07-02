@@ -314,6 +314,9 @@ func IsIgnoredFile(filePath string) bool {
 
 // IsRestrictedDir tells us whether a particular directory should be skipped.
 func IsRestrictedDir(dirname string) bool {
+	if strings.HasPrefix(dirname, ".") {
+		return true
+	}
 	// Map because this language has no sets. I know, very ugly.
 	skipList := map[string]bool{".git": true, "third_party": true, "test": true, "staging": true, "tools": true}
 	_, isPresent := skipList[dirname]

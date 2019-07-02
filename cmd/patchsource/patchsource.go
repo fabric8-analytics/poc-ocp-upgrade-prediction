@@ -20,7 +20,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println(appendFunctionsPtr)
-
 	traceappend.PatchSource(*sourceDirPtr, *appendFunctionsPtr, *PrePendStatementsPtr)
 }

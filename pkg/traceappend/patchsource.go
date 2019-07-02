@@ -21,7 +21,7 @@ func PatchSource(sourcePath, appendFuncPath, prependStatementsPath string) {
 	err := filepath.Walk(sourcePath, func(path string, f os.FileInfo, err error) error {
 		// Don't patch vendor and .git for now.
 		fmt.Printf("%v %v\n", f.Name(), path)
-		if f.IsDir() && !utils.IsRestrictedDir(f.Name()) {
+		if f.IsDir() && utils.IsRestrictedDir(f.Name()) {
 			return filepath.SkipDir
 		}
 
