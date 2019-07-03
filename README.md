@@ -71,13 +71,18 @@ prepend_body: |
 ```
 The above yaml, when saved in a file called `source_config.yaml` and passed to the binary as with:
 ```bash
-  $ patchsource --source-dir=[path_to_origin_dir] --code-config-yaml=sources_config.yaml
+  $ patchsource --source-dir=[path_to_origin_dir] --code-config-yaml=sources_config.yaml  # Excludes vendor, to include it see below.
 ```
 will change all packages of the source pointed to by source dir to:
   - Add imports marked under imports with the name as the key and the importpath as the value to the function, i.e. `godefaultfmt: fmt` becomes `import godefaultfmt "fmt"` in the Go source code.
   - Prepends the lines in the `prepend_body` key to all the function declarations and the function literal declarations in the go files present in sourcedir.
   - Adds the function declared under `func_add` to all packages if some logic is required without adding in the overhead of a third party import.
   - This binary is generic and can be used to patch any golang source code.
+
+  NOTE: `vendor` a special folder in golang that has vendored dependencies is ignored by default, to include it use the `--include-vendor` flag.
+  ```bash
+    $ patchsource --source-dir=[path_to_origin_dir] --code-config-yaml=sources_config.yaml --include-vendor  # Includes vendor.
+  ```
 
 ### Payload creation for running the end to end tests: custompayload-creator
 
