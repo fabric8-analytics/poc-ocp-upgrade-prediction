@@ -259,9 +259,11 @@ func WriteStringToFile(filepath, s string) error {
 
 //GetServiceVersion using rev-parse to get the latest commit to a service
 func GetServiceVersion(dirpath string) string {
-	output, err := exec.Command("git", "rev-parse", "HEAD").CombinedOutput()
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dirpath
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		sugarLogger.Fatal(err)
+		sugarLogger.Fatalf("%v: %v, Execution dir: %v\n", err, output, dirpath)
 	}
 	return strings.Trim(string(output), "\n ")
 }
