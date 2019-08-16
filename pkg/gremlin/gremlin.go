@@ -25,7 +25,8 @@ func RunQuery(query string) map[string]interface{} {
 	response, err := http.Post(os.Getenv("GREMLIN_REST_URL"), "application/json", bytes.NewBuffer(payloadJSON))
 
 	if err != nil {
-		sugarLogger.Fatal(err)
+		sugarLogger.Error(err)
+		return make(map[string]interface{})
 	}
 
 	var result map[string]interface{}
@@ -46,7 +47,8 @@ func RunQueryUnMarshaled(query string) string {
 	response, err := http.Post(os.Getenv("GREMLIN_REST_URL"), "application/json", bytes.NewBuffer(payloadJSON))
 
 	if err != nil {
-		sugarLogger.Fatal(err)
+		sugarLogger.Error(err)
+		return ""
 	}
 
 	var buf bytes.Buffer
@@ -154,13 +156,13 @@ func CreateDependencyNodes(serviceName, serviceVersion string, ic []serviceparse
 	}
 }
 
-// As advertised, adds a package node and its corresponding functions to the graph.
+// AddPackageFunctionNodesToGraph as advertised, adds a package node and its corresponding functions to the graph.
 func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string, components *serviceparser.ServiceComponents) {
 	for pkg, functions := range components.AllPkgFunc {
 		gremlinQuery := NewPackageNodeQuery(serviceName, serviceVersion, pkg)
 		gremlinQuery += CreateFunctionNodes(functions)
 
-		sugarLogger.Infof("Executing package node creation gremlin query for service: %s, package: %s\n", serviceName, pkg)
+		sugarLogger.Infof("Executing package node creation gremlin query for service: %s, package: %s", serviceName, pkg)
 		gremlinResponse := RunQuery(gremlinQuery)
 		sugarLogger.Debugf("%v\n%v\n", gremlinQuery, gremlinResponse)
 	}
@@ -217,7 +219,7 @@ func GetAllPaths() string {
 
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
 func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serviceVersion string) {
-	buffer := 630000
+	buffer := 63000
 	queryString := ""
 	for _, edge := range edges {
 		callerFn := edge.Caller.Name()
@@ -225,35 +227,25 @@ func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serv
 		callerPkg = strings.TrimPrefix(callerPkg, "package ")
 
 		// Only consider itself and kubernetes for now.
-		if len(strings.Split(callerPkg, "/")) < 3 || !strings.Contains(callerPkg, ".") {
-			continue
-		}
-		if strings.Contains(callerPkg, "vendor") && !strings.Contains(callerPkg, "k8s.io/kubernetes") {
-			continue
-		}
+
 		calleeFn := edge.Callee.Name()
 		calleePkg := fmt.Sprintf("%v", edge.Callee.Package())
 		calleePkg = strings.TrimPrefix(calleePkg, "package ")
 
 		sugarLogger.Debugf("%v\n", calleePkg)
-		if len(strings.Split(calleePkg, "/")) < 3 || !strings.Contains(calleePkg, ".") {
-			continue
-		}
-		if strings.Contains(calleePkg, "vendor") && !strings.Contains(calleePkg, "k8s.io/kubernetes") {
-			continue
-		}
+
 		callerPkg = sanitize(strings.Trim(callerPkg, "()*"))
 		calleePkg = sanitize(strings.Trim(calleePkg, "()*"))
 
 		var serviceNodeFrom, serviceNodeTo string
 		if strings.HasPrefix(callerPkg, "kubernetes") {
-			serviceNodeFrom = "kubernetes"
+			serviceNodeFrom = "hyperkube"
 			callerPkg = strings.TrimPrefix(callerPkg, "kubernetes/")
 		} else {
 			serviceNodeFrom = serviceName
 		}
 		if strings.HasPrefix(calleePkg, "kubernetes") {
-			serviceNodeTo = "kubernetes"
+			serviceNodeTo = "hyperkube"
 			calleePkg = strings.TrimPrefix(calleePkg, "kubernetes/")
 		} else {
 			serviceNodeTo = serviceName
@@ -291,4 +283,19 @@ func sanitize(s string) string {
 	s = strings.TrimPrefix(s, "github.com/openshift/origin/")
 	s = strings.TrimPrefix(s, "github.com/openshift/origin/vendor/k8s.io/")
 	return s
+}
+
+type PrConfidence struct {
+	confidenceScore int    `json:confidence_score`
+	prTitle         string `json:pr_title`
+}
+
+type PRPayload struct {
+	PrID    int    `json:"pr_id"`
+	RepoURL string `json:"repo_url"`
+}
+
+func GetPRConfidenceScore(PRPayload) PrConfidence {
+	conf := PrConfidence{}
+	return conf
 }

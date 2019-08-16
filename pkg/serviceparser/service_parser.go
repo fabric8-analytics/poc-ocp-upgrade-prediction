@@ -20,7 +20,7 @@ func (components *ServiceComponents) ParseService(serviceName string, root strin
 
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		// Do not visit git dir, vendor, generated, bindata etc.
-		if f.IsDir() && (f.Name() == ".git" || f.Name() == "vendor" || strings.Contains(f.Name(), "generated") || strings.Contains(f.Name(), "third_party") || strings.Contains(f.Name(), "test") || (strings.Contains(f.Name(), "bindata"))) {
+		if f.IsDir() && (f.Name() == ".git" || strings.Contains(f.Name(), "generated") || strings.Contains(f.Name(), "test") || (strings.Contains(f.Name(), "bindata"))) {
 			return filepath.SkipDir
 		}
 		// Our logic is not for files.

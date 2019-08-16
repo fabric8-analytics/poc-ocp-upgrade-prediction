@@ -10,6 +10,7 @@ func TestGetCompileTimeCalls(t *testing.T) {
 	type args struct {
 		dir  string
 		args []string
+		gopath string
 	}
 	tests := []struct {
 		name    string
@@ -21,13 +22,14 @@ func TestGetCompileTimeCalls(t *testing.T) {
 			args: args{
 				"/Users/avgupta/golang/src/github.com/openshift/origin",
 				[]string{"./cmd/hypershift"},
+				"/Users/avgupta/golang",
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := GetCompileTimeCalls(tt.args.dir, tt.args.args); (err != nil) != tt.wantErr {
+			if _, err := GetCompileTimeCalls(tt.args.dir, tt.args.args, tt.args.gopath); (err != nil) != tt.wantErr {
 				t.Errorf("GetCompileTimeCalls() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
