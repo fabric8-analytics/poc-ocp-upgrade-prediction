@@ -37,7 +37,7 @@
 ## Artifacts: Go
 
 ### Compile time flow creation: clustergraph
-- First create the compile time paths using the clustergraph flow, if you you are using cluster version  as with: `$GOPATH/bin/clustergraph --cluster-version=4.0.0-0.ci-2019-04-23-214213`
+- First create the compile time paths using the clustergraph flow, if you you are using cluster version 4.1.9 and have origin located in ~/origin run clustergraph  as with: `$GOPATH/bin/clustergraph --cluster-version=4.0.0-0.ci-2019-04-23-214213 --gopath=~ ~/origin ~/origin/vendor/k8s.io/kubernetes/ `
 - Make sure the index creation outlined in the final step of the [first phase](#setting-up-a-local-graph-instance) has been done otherwise this would be painfully slow.
 - Currently, in order for this to work for just one service there's a `break` statement at the end of the control block [here](https://github.com/fabric8-analytics/poc-ocp-upgrade-prediction/blob/master/cmd/clustergraph/clustergraph.go#L67). Remove it to create the graph for the entire payload.
 
