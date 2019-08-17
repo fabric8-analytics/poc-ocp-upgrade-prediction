@@ -23,6 +23,7 @@ var sugarLogger = logger.Sugar()
 func main() {
 	clusterversion := flag.String("cluster-version", "", "A release version of OCP")
 	destdir := flag.String("destdir", "./", "A folder where we can clone the repos of the service for analysis")
+	gopathCompilePtr := flag.String("gopath", os.Getenv("GOPATH"), "GOPATH for compile time path builds. Defaults to system GOPATH")
 
 	flag.Parse()
 	fmt.Println(flag.Args())
@@ -57,13 +58,8 @@ func main() {
 			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
 
-			// Hardcoding for now
-			homedir, err := os.UserHomeDir()
-			if err != nil {
-				sugarLogger.Errorf("Got error: %v\n", err)
-			}
-			gopathCompilePaths := filepath.Join(homedir, "temp")
-			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, gopathCompilePaths)
+			sugarLogger.Infof("Starting to retrieve compile time paths.")
+			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, *gopathCompilePtr)
 			if err != nil {
 				sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
 			}

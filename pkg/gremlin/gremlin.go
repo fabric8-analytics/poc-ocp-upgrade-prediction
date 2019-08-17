@@ -219,7 +219,7 @@ func GetAllPaths() string {
 
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
 func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serviceVersion string) {
-	buffer := 63000
+	buffer := 1000
 	queryString := ""
 	for _, edge := range edges {
 		callerFn := edge.Caller.Name()
@@ -240,13 +240,13 @@ func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serv
 		var serviceNodeFrom, serviceNodeTo string
 		if strings.HasPrefix(callerPkg, "kubernetes") {
 			serviceNodeFrom = "hyperkube"
-			callerPkg = strings.TrimPrefix(callerPkg, "kubernetes/")
+			callerPkg = strings.TrimPrefix(callerPkg, "vendor/k8s.io/kubernetes/")
 		} else {
 			serviceNodeFrom = serviceName
 		}
 		if strings.HasPrefix(calleePkg, "kubernetes") {
 			serviceNodeTo = "hyperkube"
-			calleePkg = strings.TrimPrefix(calleePkg, "kubernetes/")
+			calleePkg = strings.TrimPrefix(calleePkg, "vendor/k8s.io/kubernetes/")
 		} else {
 			serviceNodeTo = serviceName
 		}
@@ -264,10 +264,11 @@ func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serv
 				}
 			}	
 		`, callerPkg, callerFn, calleePkg, calleeFn)
-		if len(queryString)+len(gremlin) < buffer {
+		if len(queryString)+len(gremlin)+len(serviceFinder) < buffer {
 			queryString += serviceFinder + gremlin
 		} else {
 			response := RunQuery(queryString)
+			sugarLogger.Infof("%v\n", queryString)
 			sugarLogger.Infof("Got response: %v from gremlin", response)
 			queryString = serviceFinder + gremlin
 		}
