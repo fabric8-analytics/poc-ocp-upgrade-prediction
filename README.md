@@ -11,6 +11,37 @@
 - Now create JanusGraph indices for faster node creation, as with `cd scripts; go run populate_janusgraph_schema.go`
 - Alternatively just give a remote gremlin instance to `GREMLIN_REST_URL`
 
+#### Setting up the Graph to work from disk instead of in-memory
+Inside the dynamodb subrepo, lives a pom.xml that we use to start dynamodb. Inside that file changes need to be made:
+
+1) Remove the inMemory argument from everywhere
+2) Add a "sharedDB" argument for dynamodb, with a path to a data folder, see sample change diff:
+
+```xml
+@@ -512,7 +512,6 @@
+                                         <argument>-Djava.library.path=dynamodb/DynamoDBLocal_lib</argument>
+                                         <argument>-jar</argument>
+                                         <argument>dynamodb/DynamoDBLocal.jar</argument>
+-                                        <argument>-inMemory</argument>
+                                         <argument>-port</argument>
+                                         <argument>${dynamodb-local.port}</argument>
+                                         <argument>-sharedDb</argument>
+@@ -625,10 +624,11 @@
+                                         <argument>-Djava.library.path=${project.build.directory}/dynamodb/DynamoDBLocal_lib</argument>
+                                         <argument>-jar</argument>
+                                         <argument>${project.build.directory}/dynamodb/DynamoDBLocal.jar</argument>
+-                                        <argument>-inMemory</argument>
+                                         <argument>-port</argument>
+                                         <argument>${dynamodb-local.port}</argument>
+                                         <argument>-sharedDb</argument>
++                                       <argument>-dbPath</argument>
++                                       <argument>/Users/avgupta/data</argument>
+                                     </arguments>
+                                 </configuration>
+                                 <goals>
+@@ -641,4 +641,4 @@
+```
+
 ### Environment Variables
 - Make sure gremlin server is running.
 - Need to set the following environment variables: 
