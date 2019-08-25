@@ -8,8 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
-
 	gdf "sourcegraph.com/sourcegraph/go-diff/diff"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
@@ -23,7 +21,7 @@ var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
 
 // GetPRPayload uses the GHPR API to get all the data for a pull request from Github.
-func GetPRPayload(repoStr string, prId int, gopath string) ([]*gdf.FileDiff, []serviceparser.MetaRepo, string) {
+func GetPRPayload(repoStr string, prId int) ([]*gdf.FileDiff, []serviceparser.MetaRepo, string) {
 	ghPrToken := os.Getenv("GH_TOKEN")
 
 	if ghPrToken == "" {
@@ -88,8 +86,6 @@ func GetPRPayload(repoStr string, prId int, gopath string) ([]*gdf.FileDiff, []s
 		URL:      pr.Base.Repo.GetCloneURL(),
 	}
 
-	// Clone the fork
-	fork.LocalPath, _ = utils.RunCloneShell(fork.URL, gopath, fork.Branch, fork.Revision)
 	// return the diffs and PR details.
-	return allDiffs, []serviceparser.MetaRepo{fork, upstream}, fork.LocalPath
+	return allDiffs, []serviceparser.MetaRepo{fork, upstream}, pr.GetTitle()
 }

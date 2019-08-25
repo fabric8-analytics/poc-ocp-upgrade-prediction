@@ -1,31 +1,13 @@
 package serviceparser
 
 import (
-	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	gdf "sourcegraph.com/sourcegraph/go-diff/diff"
 )
-
-// MetaRepo contains all the fields that are required to clone something.
-type MetaRepo struct {
-	Branch    string
-	Revision  string
-	URL       string
-	LocalPath string
-}
-
-// Struct Touchpoints defines all the touchpoints of a PR
-type TouchPoints struct {
-	functionsChanged map[string][]string
-	functionsDeleted map[string][]string
-	functionsAdded   map[string][]string
-}
 
 // ParseDiff parses a git commit diff set.
 func ParseDiff(diffstr string) ([]*gdf.FileDiff, error) {
@@ -36,99 +18,110 @@ func ParseDiff(diffstr string) ([]*gdf.FileDiff, error) {
 	return fdiff, nil
 }
 
+func getAddedFunctions(diffContent string, filename string) []SimpleFunctionRepresentation {
+	funcAddedRe := regexp.MustCompile(`\+\s*func\s*(?P<structdefn>\(.*\))?\s*(?P<fname>[a-zA-Z0-9_]*)\(`)
+	matches := funcAddedRe.FindAllStringSubmatch(diffContent, -1)
+	functionsMatch := make([]SimpleFunctionRepresentation, 0)
+	for _, match := range matches {
+		for i, k := range funcAddedRe.SubexpNames() {
+			if k == "fname" {
+				if len(match) < 3 || match[2] == "" {
+					break
+				}
+				functionsMatch = append(functionsMatch, SimpleFunctionRepresentation{
+					Fun: match[i],
+					Pkg: filepath.Dir(filename),
+					DeclFile: filename,
+				})
+			}
+		}
+	}
+	return functionsMatch
+}
+
+func getDeletedFunctions(diffContent string, filename string) []SimpleFunctionRepresentation {
+	funcAddedRe := regexp.MustCompile(`\-\s*func\s*(?P<structdefn>\(.*\))?\s*(?P<fname>[a-zA-Z0-9_]*)\(`)
+	matches := funcAddedRe.FindAllStringSubmatch(diffContent, -1)
+	functionsMatch := make([]SimpleFunctionRepresentation, 0)
+	for _, match := range matches {
+		for i, k := range funcAddedRe.SubexpNames() {
+			if k == "fname" {
+				if len(match) < 3 || match[2] == "" {
+					break
+				}
+				functionsMatch = append(functionsMatch, SimpleFunctionRepresentation{
+					Fun: match[i],
+					Pkg: filepath.Dir(filename),
+					DeclFile: filename,
+				})
+			}
+		}
+	}
+	return functionsMatch
+}
+
+func getModifiedFunctions(funcsAdded []SimpleFunctionRepresentation, funcsDeleted []SimpleFunctionRepresentation) []SimpleFunctionRepresentation {
+	var modifiedFuncs []SimpleFunctionRepresentation
+	addedFuncsMap := make(map[SimpleFunctionRepresentation]bool)
+	for _, frep := range funcsAdded {
+		addedFuncsMap[frep] = true
+	}
+	for _, frep := range funcsDeleted {
+		if addedFuncsMap[frep] == true {
+			modifiedFuncs = append(modifiedFuncs, frep)
+		}
+	}
+	return modifiedFuncs
+}
+
+// Parse the section header for a function name.
+func parseSectionHeader(sectionHeader string, filename string) SimpleFunctionRepresentation {
+	funcModifiedRe := regexp.MustCompile(`func\s*(?P<structdefn>\(.*\))?\s*(?P<fname>[a-zA-Z0-9_]*)\(`)
+	modifiedMap := utils.ReSubMatchMap(funcModifiedRe, sectionHeader)
+	return SimpleFunctionRepresentation{Fun: modifiedMap["fname"], Pkg: filepath.Dir(filename), DeclFile: filename}
+}
+
 // GetTouchPointsOfPR is used to get the functions that are affected by a certain PR.
 //(Go source code changes.)
 func GetTouchPointsOfPR(allDiffs []*gdf.FileDiff, branchDetails []MetaRepo) *TouchPoints {
-	var filesChanged []*gdf.FileDiff
-	var filesAdded []*gdf.FileDiff
-	diffMap := make(map[string]*gdf.FileDiff)
-	astFilesAdded := make(map[string]*ast.File)
-	astFilesChanged := make(map[string]*ast.File)
+	diffs := make(map[string]string)
+	funcsAdded := make([]SimpleFunctionRepresentation, 0)
+	funcsDeleted := make([]SimpleFunctionRepresentation, 0)
+	funcsChanged := make([]SimpleFunctionRepresentation, 0)
 
 	for _, diff := range allDiffs {
-		if diff.OrigName == "/dev/null" {
-			filesAdded = append(filesAdded, diff)
-			fileAst, err := parser.ParseFile(token.NewFileSet(),
-				filepath.Join(branchDetails[0].LocalPath, diff.NewName), nil, parser.ParseComments)
-			if err != nil {
-				sugarLogger.Errorf("%v\n", err)
-			}
-			astFilesAdded[diff.NewName] = fileAst
-		} else {
-			filesChanged = append(filesChanged, diff)
-			fileAst, err := parser.ParseFile(token.NewFileSet(),
-				filepath.Join(branchDetails[0].LocalPath, diff.OrigName), nil, parser.ParseComments)
-			if err != nil {
-				sugarLogger.Errorf("%v\n", err)
-			}
-			astFilesChanged[diff.NewName] = fileAst
+		// Ignore all the test files
+		if strings.Contains(diff.OrigName, "_test.go") || strings.Contains(diff.NewName, "_test.go") {
+			continue
 		}
-	}
-
-	// Now get all the changed functions from the ASTs
-	funcsTouched := make(map[string][]string)
-	funcsDeleted := make(map[string][]string)
-	funcsAdded := make(map[string][]string)
-
-	// All functions in newly added files will be a part of this.
-	for filename, fileAst := range astFilesAdded {
-		ast.Inspect(fileAst, func(n ast.Node) bool {
-			if fdecl, isfdecl := n.(*ast.FuncDecl); isfdecl {
-				funcsTouched[filename] = append(funcsTouched[filename], fdecl.Name.Name)
-			}
-			return true
-		})
-	}
-
-	// The diffs are a bit complicated- if it's in a (+) line it's a touchpoint, else if it's only in
-	// a (-) line it's actually been removed.
-	for filename, fileAst := range astFilesChanged {
-		ast.Inspect(fileAst, func(n ast.Node) bool {
-
-			if fdecl, isfdecl := n.(*ast.FuncDecl); isfdecl {
-				for _, hunk := range diffMap[filename].Hunks {
-					linesAdded := ""
-					linesDeleted := ""
-
-					linesChanged := strings.Split(hunk.String(), "\n")
-					for _, change := range linesChanged {
-						if strings.HasPrefix(change, "+") {
-							linesAdded += change
-						} else {
-							linesDeleted += change
-						}
-					}
-					funcDeclre := fmt.Sprintf("func.*%s\\s*\\(.*", fdecl.Name.Name)
-
-					isDeleted, err := regexp.MatchString(funcDeclre, linesDeleted)
-					if err != nil {
-						sugarLogger.Errorf("%v\n", err)
-					}
-
-					isAdded, err := regexp.MatchString(funcDeclre, linesAdded)
-					if err != nil {
-						sugarLogger.Errorf("%v\n", err)
-					}
-
-					if isDeleted && !isAdded {
-						funcsDeleted[filename] = append(funcsTouched[filename], fdecl.Name.Name)
-					} else if isDeleted && isAdded {
-						funcsTouched[filename] = append(funcsTouched[filename], fdecl.Name.Name)
-					} else {
-						funcsAdded[filename] = append(funcsTouched[filename], fdecl.Name.Name)
-					}
-				}
-			}
-
-			return true
-		})
+		diffContent := ""
+		for _, hunk := range diff.Hunks {
+			diffContent += strings.Trim(string(hunk.Body), "\t\n")
+			// Use the section header for modification was done somewhere within a function body.
+			funcsChanged = append(funcsChanged, parseSectionHeader(hunk.Section, removeAB(diff.NewName)))
+		}
+		diffs[diff.NewName] = diffContent
+		// First get all the changes where the declaration itself was modified.
+		funcsAdded = append(funcsAdded, getAddedFunctions(diffContent, removeAB(diff.NewName))...)
+		funcsDeleted = append(funcsDeleted, getDeletedFunctions(diffContent, removeAB(diff.OrigName))...)
+		funcsChanged = append(funcsChanged, getModifiedFunctions(funcsAdded, funcsDeleted)...)
 	}
 
 	// Check which functions are in the current master branch functions and also in the filesChanged
 	// thing to know which diff was changed.
 	return &TouchPoints{
-		functionsAdded:   funcsAdded,
-		functionsDeleted: funcsDeleted,
-		functionsChanged: funcsTouched,
+		FunctionsAdded:   funcsAdded,
+		FunctionsDeleted: funcsDeleted,
+		FunctionsChanged: funcsChanged,
 	}
+}
+
+func removeAB(filename string) string {
+	if strings.HasPrefix(filename, "a/") {
+		return strings.TrimPrefix(filename, "a/")
+	}
+	if strings.HasPrefix(filename, "b/") {
+		return strings.TrimPrefix(filename, "b/")
+	}
+	return filename
 }

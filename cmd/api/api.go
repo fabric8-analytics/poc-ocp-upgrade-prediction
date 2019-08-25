@@ -34,8 +34,8 @@ func processPR(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the PR diffs, details of base and fork and the clonePath where the fork has been cloned.
-	diffs, branchDetails, clonePath := ghpr.GetPRPayload(pr.RepoURL, pr.PrID, "/tmp")
-	sugar.Infof("%v\n%v\n", diffs, branchDetails, clonePath)
+	diffs, branchDetails, _ := ghpr.GetPRPayload(pr.RepoURL, pr.PrID)
+	sugar.Infof("%v\n%v\n", diffs, branchDetails)
 	// components := serviceparser.NewServiceComponents("machine-config-controller")
 	// ParseService called to parse and populate all the arrays in serviceparser.
 	// components.ParseService("machine-config-controller", clonePath)
@@ -73,12 +73,12 @@ func prConfidenceScore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	diffs, branchDetails, clonePath := ghpr.GetPRPayload(pr.RepoURL, pr.PrID, "/tmp")
-	sugar.Infof("%v\n%v\n", diffs, branchDetails, clonePath)
+	diffs, branchDetails, prTitle := ghpr.GetPRPayload(pr.RepoURL, pr.PrID)
 	touchPoints := serviceparser.GetTouchPointsOfPR(diffs, branchDetails)
-	sugar.Infof("%v\n", touchPoints)
+	sugar.Infof("%+v\n", touchPoints)
 
 	response := gremlin.GetPRConfidenceScore(pr)
+	response.PrTitle = prTitle
 	output, err := json.Marshal(response)
 
 	if err != nil {

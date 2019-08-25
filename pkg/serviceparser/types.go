@@ -24,12 +24,34 @@ type ServiceComponents struct {
 }
 
 // Creates a new service components structure for serviceparser's use.
-func NewServiceComponents(servicename string) *ServiceComponents {	
+func NewServiceComponents(servicename string) *ServiceComponents {
 	return &ServiceComponents{
-		Servicename: servicename,
-		AllPkgFunc: make(map[string][]string),
-		AllPkgImports: make(map[string]interface{}),
+		Servicename:         servicename,
+		AllPkgFunc:          make(map[string][]string),
+		AllPkgImports:       make(map[string]interface{}),
 		AllDeclaredPackages: make(map[string]bool),
-		FilePackageMap: make(map[string]string),
+		FilePackageMap:      make(map[string]string),
 	}
+}
+
+// A barebones function representation
+type SimpleFunctionRepresentation struct {
+	Fun      string `json:"fun"`
+	Pkg      string `json:"pkg"`
+	DeclFile string `json:"decl_file"`
+}
+
+// MetaRepo contains all the fields that are required to clone something.
+type MetaRepo struct {
+	Branch    string `json:"branch"`
+	Revision  string `json:"revision"`
+	URL       string `json:"url"`
+	LocalPath string `json:"local_path"`
+}
+
+// Struct Touchpoints defines all the touchpoints of a PR
+type TouchPoints struct {
+	FunctionsChanged []SimpleFunctionRepresentation `json:"functions_changed"`
+	FunctionsDeleted []SimpleFunctionRepresentation `json:"functions_deleted"`
+	FunctionsAdded   []SimpleFunctionRepresentation `json:"functions_added"`
 }

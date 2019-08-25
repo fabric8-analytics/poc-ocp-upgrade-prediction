@@ -286,17 +286,9 @@ func sanitize(s string) string {
 	return s
 }
 
-type PrConfidence struct {
-	confidenceScore int    `json:confidence_score`
-	prTitle         string `json:pr_title`
-}
-
-type PRPayload struct {
-	PrID    int    `json:"pr_id"`
-	RepoURL string `json:"repo_url"`
-}
-
 func GetPRConfidenceScore(PRPayload) PrConfidence {
-	conf := PrConfidence{}
+	conf := PrConfidence{
+		ConfidenceScore: 100,
+	}
 	return conf
 }
