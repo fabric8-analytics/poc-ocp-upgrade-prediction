@@ -60,15 +60,6 @@ func RunQueryUnMarshaled(query string) string {
 	return buf.String()
 }
 
-// ReadJSON reads the contents of a JSON and returns it as a map[string]interface{}
-func ReadJSON(jsonFilepath string) string {
-	b, err := ioutil.ReadFile(jsonFilepath) // just pass the file name
-	if err != nil {
-		sugarLogger.Fatal(err)
-	}
-	return string(b)
-}
-
 //ReadFile reads the contents of a text file and return it as a string
 func ReadFile(filepath string) string {
 	b, err := ioutil.ReadFile(filepath)
@@ -166,55 +157,6 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string, c
 		gremlinResponse := RunQuery(gremlinQuery)
 		sugarLogger.Debugf("%v\n%v\n", gremlinQuery, gremlinResponse)
 	}
-}
-
-// AddComponentRuntimePathsToGraph adds to our graph edges that represent runtime flows parsed from the end to end log of COMPONENT end to end tests.
-func AddComponentRuntimePathsToGraph(serviceName, serviceVersion string, runtimePaths []serviceparser.CodePath) {
-	sugarLogger.Debugf("%v\n", runtimePaths)
-	serviceNodeFinderQuery := fmt.Sprintf(`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();`,
-		serviceName, serviceVersion)
-	batch := serviceNodeFinderQuery
-	for i, runtimePath := range runtimePaths {
-		batch += fmt.Sprintf(`fromNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name' ,'%s');
-		if (fromNode.hasNext()) {
-			ToNode = g.V(serviceNode).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
-			if (ToNode.hasNext()) {
-				fromNode.next().addEdge("%s", ToNode).property("testflowname", "%s");
-			}
-		}
-		`, runtimePath.ContainerPackageCaller, runtimePath.From, runtimePath.ContainerPackage, runtimePath.To, runtimePath.PathType, runtimePath.PathAttrs["TestFlowName"])
-		if (i % 10) == 0 {
-			sugarLogger.Debugf("Query: %v\n", batch)
-			gremlinResponse := RunQuery(batch)
-			sugarLogger.Debugf("%v\n", gremlinResponse)
-			batch = serviceNodeFinderQuery
-		}
-	}
-	if batch != serviceNodeFinderQuery {
-		// execute the remaining chunk
-		sugarLogger.Debugf("Query: %v\n", batch)
-		gremlinResponse := RunQuery(batch)
-		sugarLogger.Debugf("%v\n", gremlinResponse)
-		batch = ""
-	}
-}
-
-// GetTouchPointCoverage gives us the functions which were changed as a part of the PR.
-func GetTouchPointCoverage(touchpoints *serviceparser.TouchPoints) string {
-	var response map[string]string
-	responseJson, err := json.Marshal(response)
-	if err != nil {
-		sugarLogger.Errorf("%v\n", err)
-	}
-	// TODO
-	sugarLogger.Info(GetAllPaths())
-	return string(responseJson)
-}
-
-// GetAllPaths returns all "compile time paths" that were a part of the PR
-func GetAllPaths() string {
-	query := "g.E().has('edge_label', 'compile_time_call').path().fold();"
-	return RunQueryUnMarshaled(query)
 }
 
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
