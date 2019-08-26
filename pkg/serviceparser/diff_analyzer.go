@@ -18,10 +18,10 @@ func ParseDiff(diffstr string) ([]*gdf.FileDiff, error) {
 	return fdiff, nil
 }
 
-func getAddedFunctions(diffContent string, filename string) []SimpleFunctionRepresentation {
+func getAddedFunctions(diffContent string, filename string, functionsMatch []SimpleFunctionRepresentation) []SimpleFunctionRepresentation {
 	funcAddedRe := regexp.MustCompile(`\+\s*func\s*(?P<structdefn>\(.*\))?\s*(?P<fname>[a-zA-Z0-9_]*)\(`)
 	matches := funcAddedRe.FindAllStringSubmatch(diffContent, -1)
-	functionsMatch := make([]SimpleFunctionRepresentation, 0)
+	//sugarLogger.Infof("%v %+v\n", diffContent, matches)
 	for _, match := range matches {
 		for i, k := range funcAddedRe.SubexpNames() {
 			if k == "fname" {
@@ -39,10 +39,9 @@ func getAddedFunctions(diffContent string, filename string) []SimpleFunctionRepr
 	return functionsMatch
 }
 
-func getDeletedFunctions(diffContent string, filename string) []SimpleFunctionRepresentation {
+func getDeletedFunctions(diffContent string, filename string, functionsMatch []SimpleFunctionRepresentation) []SimpleFunctionRepresentation {
 	funcAddedRe := regexp.MustCompile(`\-\s*func\s*(?P<structdefn>\(.*\))?\s*(?P<fname>[a-zA-Z0-9_]*)\(`)
 	matches := funcAddedRe.FindAllStringSubmatch(diffContent, -1)
-	functionsMatch := make([]SimpleFunctionRepresentation, 0)
 	for _, match := range matches {
 		for i, k := range funcAddedRe.SubexpNames() {
 			if k == "fname" {
@@ -60,15 +59,24 @@ func getDeletedFunctions(diffContent string, filename string) []SimpleFunctionRe
 	return functionsMatch
 }
 
-func getModifiedFunctions(funcsAdded []SimpleFunctionRepresentation, funcsDeleted []SimpleFunctionRepresentation) []SimpleFunctionRepresentation {
-	var modifiedFuncs []SimpleFunctionRepresentation
+func getModifiedFunctions(funcsAdded []SimpleFunctionRepresentation, funcsDeleted []SimpleFunctionRepresentation, modifiedFuncs []SimpleFunctionRepresentation) []SimpleFunctionRepresentation {
 	addedFuncsMap := make(map[SimpleFunctionRepresentation]bool)
 	for _, frep := range funcsAdded {
 		addedFuncsMap[frep] = true
 	}
 	for _, frep := range funcsDeleted {
 		if addedFuncsMap[frep] == true {
-			modifiedFuncs = append(modifiedFuncs, frep)
+			// TODO: Make this more efficient.
+			alreadyPresent := 0
+			for _, fun := range modifiedFuncs {
+				if fun == frep {
+					alreadyPresent = 1
+					break
+				}
+			}
+			if alreadyPresent == 0 {
+				modifiedFuncs = append(modifiedFuncs, frep)
+			}
 		}
 	}
 	return modifiedFuncs
@@ -84,7 +92,6 @@ func parseSectionHeader(sectionHeader string, filename string) SimpleFunctionRep
 // GetTouchPointsOfPR is used to get the functions that are affected by a certain PR.
 //(Go source code changes.)
 func GetTouchPointsOfPR(allDiffs []*gdf.FileDiff, branchDetails []MetaRepo) *TouchPoints {
-	diffs := make(map[string]string)
 	funcsAdded := make([]SimpleFunctionRepresentation, 0)
 	funcsDeleted := make([]SimpleFunctionRepresentation, 0)
 	funcsChanged := make([]SimpleFunctionRepresentation, 0)
@@ -98,13 +105,25 @@ func GetTouchPointsOfPR(allDiffs []*gdf.FileDiff, branchDetails []MetaRepo) *Tou
 		for _, hunk := range diff.Hunks {
 			diffContent += strings.Trim(string(hunk.Body), "\t\n")
 			// Use the section header for modification was done somewhere within a function body.
-			funcsChanged = append(funcsChanged, parseSectionHeader(hunk.Section, removeAB(diff.NewName)))
+			sectionFunc := parseSectionHeader(hunk.Section, removeAB(diff.NewName))
+			if sectionFunc.Fun != "" {
+				// TODO: Make this efficient by way of lookup.
+				alreadyChanged := 0
+				for _, fun := range funcsChanged {
+					if fun == sectionFunc {
+						alreadyChanged = 1
+						break
+					}
+				}
+				if alreadyChanged == 0 {
+					funcsChanged = append(funcsChanged, sectionFunc)
+				}
+			}
 		}
-		diffs[diff.NewName] = diffContent
 		// First get all the changes where the declaration itself was modified.
-		funcsAdded = append(funcsAdded, getAddedFunctions(diffContent, removeAB(diff.NewName))...)
-		funcsDeleted = append(funcsDeleted, getDeletedFunctions(diffContent, removeAB(diff.OrigName))...)
-		funcsChanged = append(funcsChanged, getModifiedFunctions(funcsAdded, funcsDeleted)...)
+		funcsAdded = getAddedFunctions(diffContent, removeAB(diff.NewName), funcsAdded)
+		funcsDeleted = getDeletedFunctions(diffContent, removeAB(diff.OrigName), funcsDeleted)
+		funcsChanged = getModifiedFunctions(funcsAdded, funcsDeleted, funcsChanged)
 	}
 
 	// Check which functions are in the current master branch functions and also in the filesChanged

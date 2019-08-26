@@ -62,9 +62,8 @@ func GetPRPayload(repoStr string, prId int) ([]*gdf.FileDiff, []serviceparser.Me
 	// In the interest of time, just use more space.
 	var allDiffs []*gdf.FileDiff
 	for _, fileDiff := range fileDiffs {
-		if !strings.HasSuffix(fileDiff.OrigName, ".go") &&
-			!(fileDiff.OrigName != "/dev/null" && strings.HasSuffix(fileDiff.NewName, ".go")) &&
-			!(fileDiff.OrigName == "Gopkg.toml" || fileDiff.OrigName == "Godeps.json" || fileDiff.OrigName == "glide.yaml" || fileDiff.OrigName == "go.mod") {
+		// Do not process any non-go files for now.
+		if !strings.HasSuffix(fileDiff.OrigName, ".go") && !strings.HasSuffix(fileDiff.NewName, ".go") {
 			sugarLogger.Debugf("Not processing non go source %s -> %s\n", fileDiff.OrigName, fileDiff.NewName)
 			continue
 		}

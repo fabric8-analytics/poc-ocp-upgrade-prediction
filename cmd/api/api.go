@@ -75,10 +75,10 @@ func prConfidenceScore(w http.ResponseWriter, r *http.Request) {
 
 	diffs, branchDetails, prTitle := ghpr.GetPRPayload(pr.RepoURL, pr.PrID)
 	touchPoints := serviceparser.GetTouchPointsOfPR(diffs, branchDetails)
-	sugar.Infof("%+v\n", touchPoints)
 
 	response := gremlin.GetPRConfidenceScore(pr)
 	response.PrTitle = prTitle
+	response.TouchPoints = *touchPoints
 	output, err := json.Marshal(response)
 
 	if err != nil {
