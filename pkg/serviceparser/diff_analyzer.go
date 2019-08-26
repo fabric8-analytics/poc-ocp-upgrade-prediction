@@ -128,6 +128,8 @@ func GetTouchPointsOfPR(allDiffs []*gdf.FileDiff, branchDetails []MetaRepo) *Tou
 
 	// Check which functions are in the current master branch functions and also in the filesChanged
 	// thing to know which diff was changed.
+	funcsAdded, funcsDeleted = removeModifiedFromAddedDeleted(funcsAdded, funcsDeleted)
+
 	return &TouchPoints{
 		FunctionsAdded:   funcsAdded,
 		FunctionsDeleted: funcsDeleted,
@@ -143,4 +145,31 @@ func removeAB(filename string) string {
 		return strings.TrimPrefix(filename, "b/")
 	}
 	return filename
+}
+
+func removeModifiedFromAddedDeleted(added []SimpleFunctionRepresentation, deleted []SimpleFunctionRepresentation) ([]SimpleFunctionRepresentation, []SimpleFunctionRepresentation) {
+	found := make(map[SimpleFunctionRepresentation]int)
+	for idx, fun := range added {
+		found[fun] = idx
+	}
+	deletionQAdded := make([]int, 0)
+	deletionQDeleted := make([]int, 0)
+	for idx, fun := range deleted {
+		if idxAdded, exists := found[fun]; exists {
+			deletionQAdded = append(deletionQAdded, idxAdded)
+			deletionQDeleted = append(deletionQDeleted, idx)
+		}
+	}
+	for _, pos := range deletionQAdded {
+		added = removeFunctionFromSlice(added, pos)
+	}
+	for _, pos := range deletionQDeleted {
+		deleted = removeFunctionFromSlice(deleted, pos)
+	}
+	return added, deleted
+}
+
+func removeFunctionFromSlice(haystack []SimpleFunctionRepresentation, idx int) []SimpleFunctionRepresentation {
+	haystack[idx] = haystack[len(haystack) - 1]
+	return haystack[:len(haystack) - 1]
 }
