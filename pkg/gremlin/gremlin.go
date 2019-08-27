@@ -202,7 +202,7 @@ func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serv
 			to = g.V(serviceNodeTo).out().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
 			if (from.hasNext()) {
 				if (to.hasNext()) {
-					fromNode = from.Next()
+					fromNode = from.next()
 					fromNode.addEdge('compile_time_call', to.next()).property('edge_label', 'compile_time_call');
 				}
 			}	
@@ -232,20 +232,22 @@ func sanitize(s string) string {
 func GetPRConfidenceScore(points *serviceparser.TouchPoints) PrConfidence {
 	countCompileTime := int64(0)
 	countRunTime := int64(0)
-	var confScore int64
+	var confScore float64
 	for _, point := range points.Flatten() {
-		q := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').in().has('edge_label', 'compile_time_path').count();`, point.Pkg, point.Fun)
+		q := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').bothE().has('edge_label', 'compile_time_call').count();`, point.Pkg, point.Fun)
 		response := RunQueryUnMarshaled(q)
 		thisFnScore := gjson.Get(response, "result.data").Array()[0].Int()
 		countCompileTime += thisFnScore
-		q = fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').in().has('edge_label', 'run_time_path').count();`, point.Pkg, point.Fun)
+		q = fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').bothE().has('edge_label', 'run_time_call').count();`, point.Pkg, point.Fun)
 		response = RunQueryUnMarshaled(q)
 		thisRunScore := gjson.Get(response, "result.data").Array()[0].Int()
 		countRunTime += thisRunScore
 		sugarLogger.Infof("Score for %v.%v: %d\n", point.Pkg, point.Fun, thisFnScore)
+		sugarLogger.Infof("Score for %v.%v: %d\n", point.Pkg, point.Fun, thisRunScore)
+
 	}
 	if countCompileTime > 0 {
-		confScore = countRunTime / countCompileTime
+		confScore = float64(countRunTime + 10) / float64(countCompileTime)
 	} else {
 		confScore = -1
 	}
@@ -255,12 +257,19 @@ func GetPRConfidenceScore(points *serviceparser.TouchPoints) PrConfidence {
 	return conf
 }
 
-func GetCompileTimePathsAffectedByPR(points *serviceparser.TouchPoints) []string {
-	var compilePaths []string
+func GetCompileTimePathsAffectedByPR(points *serviceparser.TouchPoints) []map[string]interface{} {
+	var compilePaths []map[string]interface{}
 	for _, point := range points.Flatten() {
 		curPaths := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').inE().has('edge_label', 'compile_time_call').outV().path()`, point.Pkg, point.Fun)
 		response := RunQueryUnMarshaled(curPaths)
-		compilePaths = append(compilePaths, gjson.Get(response, "result.data").String())
+		respArr := gjson.Get(response, "result.data").Array()
+		if len(respArr) == 0 {
+			continue
+		}
+		for _, rep := range respArr {
+			repMap := rep.Value().(map[string]interface{})
+			compilePaths = append(compilePaths, repMap)
+		}
 	}
 	return compilePaths
 }
