@@ -55,3 +55,11 @@ type TouchPoints struct {
 	FunctionsDeleted []SimpleFunctionRepresentation `json:"functions_deleted"`
 	FunctionsAdded   []SimpleFunctionRepresentation `json:"functions_added"`
 }
+
+func (t *TouchPoints) Flatten() []SimpleFunctionRepresentation {
+	var retval []SimpleFunctionRepresentation
+	retval = append(retval, t.FunctionsAdded...)
+	retval = append(retval, t.FunctionsChanged...)
+	retval = append(retval, t.FunctionsDeleted...)
+	return retval
+}

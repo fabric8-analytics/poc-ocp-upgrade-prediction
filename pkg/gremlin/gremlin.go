@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -228,9 +229,38 @@ func sanitize(s string) string {
 	return s
 }
 
-func GetPRConfidenceScore(PRPayload) PrConfidence {
+func GetPRConfidenceScore(points *serviceparser.TouchPoints) PrConfidence {
+	countCompileTime := int64(0)
+	countRunTime := int64(0)
+	var confScore int64
+	for _, point := range points.Flatten() {
+		q := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').in().has('edge_label', 'compile_time_path').count();`, point.Pkg, point.Fun)
+		response := RunQueryUnMarshaled(q)
+		thisFnScore := gjson.Get(response, "result.data").Array()[0].Int()
+		countCompileTime += thisFnScore
+		q = fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').in().has('edge_label', 'run_time_path').count();`, point.Pkg, point.Fun)
+		response = RunQueryUnMarshaled(q)
+		thisRunScore := gjson.Get(response, "result.data").Array()[0].Int()
+		countRunTime += thisRunScore
+		sugarLogger.Infof("Score for %v.%v: %d\n", point.Pkg, point.Fun, thisFnScore)
+	}
+	if countCompileTime > 0 {
+		confScore = countRunTime / countCompileTime
+	} else {
+		confScore = -1
+	}
 	conf := PrConfidence{
-		ConfidenceScore: 100,
+		ConfidenceScore: confScore,
 	}
 	return conf
+}
+
+func GetCompileTimePathsAffectedByPR(points *serviceparser.TouchPoints) []string {
+	var compilePaths []string
+	for _, point := range points.Flatten() {
+		curPaths := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').inE().has('edge_label', 'compile_time_call').outV().path()`, point.Pkg, point.Fun)
+		response := RunQueryUnMarshaled(curPaths)
+		compilePaths = append(compilePaths, gjson.Get(response, "result.data").String())
+	}
+	return compilePaths
 }

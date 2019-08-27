@@ -76,9 +76,10 @@ func prConfidenceScore(w http.ResponseWriter, r *http.Request) {
 	diffs, branchDetails, prTitle := ghpr.GetPRPayload(pr.RepoURL, pr.PrID)
 	touchPoints := serviceparser.GetTouchPointsOfPR(diffs, branchDetails)
 
-	response := gremlin.GetPRConfidenceScore(pr)
+	response := gremlin.GetPRConfidenceScore(touchPoints)
 	response.PrTitle = prTitle
 	response.TouchPoints = *touchPoints
+	response.CompilePaths = gremlin.GetCompileTimePathsAffectedByPR(touchPoints)
 	output, err := json.Marshal(response)
 
 	if err != nil {
