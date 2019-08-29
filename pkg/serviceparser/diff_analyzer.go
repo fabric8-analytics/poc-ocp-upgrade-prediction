@@ -160,16 +160,21 @@ func removeModifiedFromAddedDeleted(added []SimpleFunctionRepresentation, delete
 			deletionQDeleted = append(deletionQDeleted, idx)
 		}
 	}
-	for _, pos := range deletionQAdded {
-		added = removeFunctionFromSlice(added, pos)
-	}
-	for _, pos := range deletionQDeleted {
-		deleted = removeFunctionFromSlice(deleted, pos)
-	}
+	added = removeFunctionsFromSlice(added, deletionQAdded)
+	deleted = removeFunctionsFromSlice(deleted, deletionQDeleted)
 	return added, deleted
 }
 
-func removeFunctionFromSlice(haystack []SimpleFunctionRepresentation, idx int) []SimpleFunctionRepresentation {
-	haystack[idx] = haystack[len(haystack) - 1]
-	return haystack[:len(haystack) - 1]
+func removeFunctionsFromSlice(haystack []SimpleFunctionRepresentation, idxs []int) []SimpleFunctionRepresentation {
+	var trimmed []SimpleFunctionRepresentation
+	toDelete := make(map[int]bool)
+	for _, idx := range idxs {
+		toDelete[idx] = true
+	}
+	for i, fn := range haystack {
+		if _, exists := toDelete[i]; !exists {
+			trimmed = append(trimmed, fn)
+		}
+	}
+	return trimmed
 }

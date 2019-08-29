@@ -234,11 +234,11 @@ func GetPRConfidenceScore(points *serviceparser.TouchPoints) PrConfidence {
 	countRunTime := int64(0)
 	var confScore float64
 	for _, point := range points.Flatten() {
-		q := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').bothE().has('edge_label', 'compile_time_call').count();`, point.Pkg, point.Fun)
+		q := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').bothE().has('edge_label', 'compile_time_call').dedup().count();`, point.Pkg, point.Fun)
 		response := RunQueryUnMarshaled(q)
 		thisFnScore := gjson.Get(response, "result.data").Array()[0].Int()
 		countCompileTime += thisFnScore
-		q = fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').bothE().has('edge_label', 'run_time_call').count();`, point.Pkg, point.Fun)
+		q = fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').bothE().has('edge_label', 'run_time_call').dedup().count();`, point.Pkg, point.Fun)
 		response = RunQueryUnMarshaled(q)
 		thisRunScore := gjson.Get(response, "result.data").Array()[0].Int()
 		countRunTime += thisRunScore
@@ -260,9 +260,13 @@ func GetPRConfidenceScore(points *serviceparser.TouchPoints) PrConfidence {
 func GetCompileTimePathsAffectedByPR(points *serviceparser.TouchPoints) []map[string]interface{} {
 	var compilePaths []map[string]interface{}
 	for _, point := range points.Flatten() {
-		curPaths := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').inE().has('edge_label', 'compile_time_call').outV().path()`, point.Pkg, point.Fun)
-		response := RunQueryUnMarshaled(curPaths)
-		respArr := gjson.Get(response, "result.data").Array()
+		pathsIn := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').repeat(inE('compile_time_call').outV().dedup()).until(inE('compile_time_call').count().is(0)).path()`, point.Pkg, point.Fun)
+		sugarLogger.Infof("%v %v\n", "Running query: ", pathsIn)
+		pathsOut := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').repeat(outE('compile_time_call').inV().dedup()).until(outE('compile_time_call').count().is(0)).path()`, point.Pkg, point.Fun)
+		responseIn := RunQueryUnMarshaled(pathsIn)
+		responseOut := RunQueryUnMarshaled(pathsOut)
+		respArr := gjson.Get(responseIn, "result.data").Array()
+		respArr = append(respArr, gjson.Get(responseOut, "result.data").Array()...)
 		if len(respArr) == 0 {
 			continue
 		}

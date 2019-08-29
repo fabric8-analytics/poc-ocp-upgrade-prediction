@@ -80,6 +80,7 @@ func prConfidenceScore(w http.ResponseWriter, r *http.Request) {
 	response.PrTitle = prTitle
 	response.TouchPoints = *touchPoints
 	response.CompilePaths = gremlin.GetCompileTimePathsAffectedByPR(touchPoints)
+	response.CompilePathCount = len(response.CompilePaths)
 	output, err := json.Marshal(response)
 
 	if err != nil {

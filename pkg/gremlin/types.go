@@ -7,6 +7,7 @@ ConfidenceScore float64    `json:"confidence_score"`
 PrTitle         string `json:"pr_title"`
 TouchPoints serviceparser.TouchPoints `json:"touch_points"`
 CompilePaths []map[string]interface{} `json:"compile_paths"`
+CompilePathCount int `json:"compile_path_count"`
 }
 
 type PRPayload struct {
