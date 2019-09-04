@@ -56,8 +56,7 @@ func main() {
 			
 			serviceVersion := utils.GetServiceVersion(path)
 			components := serviceparser.NewServiceComponents(serviceName)
-			gremlin.CreateNewServiceVersionNode(clusterVersion, "hypershift", serviceVersion)
-			gremlin.CreateNewServiceVersionNode(clusterVersion, "hyperkube", serviceVersion)
+			gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
 
 			// Add the imports, packages, functions to graph.
 			components.ParseService(serviceName, path)
