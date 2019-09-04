@@ -201,11 +201,9 @@ func CreateDependencyNodes(serviceName, serviceVersion string, ic []serviceparse
 }
 
 // AddPackageFunctionNodesToGraph as advertised, adds a package node and its corresponding functions to the graph.
-func AddPackageFunctionNodesToGraph(serviceVersion string, components *serviceparser.ServiceComponents) {
+func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string, components *serviceparser.ServiceComponents) {
 	gremlinQuery := ""
 	for pkg, functions := range components.AllPkgFunc {
-
-		serviceName := getServiceName(pkg)
 		gremlinQuery += NewPackageNodeQuery(serviceName, serviceVersion, pkg)
 		gremlinQuery += CreateFunctionNodes(functions)
 		RunQuery(gremlinQuery)

@@ -60,7 +60,7 @@ func main() {
 
 			// Add the imports, packages, functions to graph.
 			components.ParseService(serviceName, path)
-			gremlin.AddPackageFunctionNodesToGraph(serviceVersion, components)
+			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
 			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, *gopathCompilePtr)
 			sugarLogger.Infof("silly %s",  len(edges))
