@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	 "os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
+	 "github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"github.com/tidwall/gjson"
 )
 
@@ -23,10 +23,13 @@ var sugarLogger = logger.Sugar()
 func main() {
 	clusterversion := flag.String("cluster-version", "", "A release version of OCP")
 	destdir := flag.String("destdir", "./", "A folder where we can clone the repos of the service for analysis")
+	fmt.Printf(" destdir are %s", destdir)
+
 	gopathCompilePtr := flag.String("gopath", os.Getenv("GOPATH"), "GOPATH for compile time path builds. Defaults to system GOPATH")
+	fmt.Printf(" gopathCompilePtr are %s", *gopathCompilePtr)
 
 	flag.Parse()
-	fmt.Println(flag.Args())
+	fmt.Printf(" Args are %s", flag.Args())
 	payloadInfo, err := exec.Command("oc", "adm", "release", "info", "--commits=true",
 		fmt.Sprintf("quay.io/openshift-release-dev/ocp-release:%s", *clusterversion), "-o", "json").CombinedOutput()
 	if err != nil {
@@ -34,7 +37,7 @@ func main() {
 	}
 
 	clusterInfo := string(payloadInfo)
-	services := gjson.Get(clusterInfo, "references.spec.tags").Array()
+	// services := gjson.Get(clusterInfo, "references.spec.tags").Array()
 	clusterVersion := gjson.Get(clusterInfo, "digest").String()
 	sugarLogger.Infow("Cluster version is", "clusterVersion", clusterVersion)
 
@@ -42,56 +45,37 @@ func main() {
 
 	if len(flag.Args()) > 0 {
 		for _, path := range flag.Args() {
-			var serviceName string
+			
+			serviceName := ""
 			// Hardcoded for kube
 			if strings.HasSuffix(path, "vendor/k8s.io/kubernetes") {
 				serviceName = "hyperkube"
 			} else {
 				serviceName = ServicePackageMap[filepath.Base(path)]
 			}
-			components := serviceparser.NewServiceComponents(serviceName)
+			
 			serviceVersion := utils.GetServiceVersion(path)
-			gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
+			components := serviceparser.NewServiceComponents(serviceName)
+			gremlin.CreateNewServiceVersionNode(clusterVersion, "hypershift", serviceVersion)
+			gremlin.CreateNewServiceVersionNode(clusterVersion, "hyperkube", serviceVersion)
 
 			// Add the imports, packages, functions to graph.
 			components.ParseService(serviceName, path)
-			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
+			gremlin.AddPackageFunctionNodesToGraph(serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
-
-			sugarLogger.Infof("Starting to retrieve compile time paths.")
 			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, *gopathCompilePtr)
+			sugarLogger.Infof("silly %s",  len(edges))
+
+
 			if err != nil {
 				sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
 			}
 			// Now create the compile time paths
+			sugarLogger.Infof("GOING to create compile time edges %s",  len(edges))
 			gremlin.CreateCompileTimePaths(edges, serviceName, serviceVersion)
+			
 		}
-	} else {
-		for idx := range services {
-			service := services[idx].Map()
-			serviceName := service["name"].String()
-			sugarLogger.Info("Parsing service ", serviceName)
-			serviceDetails := service["annotations"].Map()
-			serviceVersion := serviceDetails["io.openshift.build.commit.id"].String()
-
-			gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
-
-			// Git clone the repo
-			serviceRoot, cloned := utils.RunCloneShell(serviceDetails["io.openshift.build.source-location"].String(), *destdir+strings.Split(clusterVersion, ":")[1][:7],
-				serviceDetails["io.openshift.build.commit.ref"].String(), serviceDetails["io.openshift.build.commit.id"].String())
-
-			if cloned == false {
-				continue
-			}
-			components := serviceparser.NewServiceComponents(serviceName)
-			components.ParseService(serviceName, serviceRoot)
-			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
-			parseImportPushGremlin(serviceName, serviceVersion, components)
-			// TODO: This flow is broken at this point, fix in favor of CompileTimeFlows.
-			break
-			// This concludes the offline flow.
-		}
-	}
+	} 
 }
 
 func filterImports(imports []serviceparser.ImportContainer, serviceName string) []serviceparser.ImportContainer {
@@ -119,3 +103,5 @@ func parseImportPushGremlin(serviceName, serviceVersion string, components *serv
 		gremlin.CreateDependencyNodes(serviceName, serviceVersion, imported)
 	}
 }
+
+
