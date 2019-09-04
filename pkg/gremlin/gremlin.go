@@ -152,14 +152,14 @@ func CreateFunctionNodes(functionNames []string) string {
 func CreateClusterVerisonNode(clusterVersion string) {
 	query := fmt.Sprintf(`
 		clusterVersion = g.addV('clusterVersion').property('vertex_label', 'clusterVersion').property('cluster_version', '%s').next()`, clusterVersion)
-	RunQuery(query)
+	response := RunQuery(query)
 	sugarLogger.Debugf(" the clusterversion response %s ", response)
 }
 
 // RunGroovyScript takes the path to a groovy script and runs it at the Gremlin console.
 func RunGroovyScript(scriptPath string) {
 	scriptContent := ReadFile(scriptPath)
-	RunQuery(scriptContent)
+	gremlinResponse := RunQuery(scriptContent)
 	sugarLogger.Info(gremlinResponse)
 }
 
