@@ -15,8 +15,8 @@ func TestRunE2ETestsInGoPath(t *testing.T) {
 		args args
 	}{
 		{
-			name:"Run tests in gopath",
-			args:args{
+			name: "Run tests in gopath",
+			args: args{
 				srcdir: "/tmp/src/github.com/openshift/machine-config-operator",
 				gopath: "/tmp/",
 			},

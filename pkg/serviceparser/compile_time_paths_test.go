@@ -8,8 +8,8 @@ import (
 func TestGetCompileTimeCalls(t *testing.T) {
 
 	type args struct {
-		dir  string
-		args []string
+		dir    string
+		args   []string
 		gopath string
 	}
 	tests := []struct {
