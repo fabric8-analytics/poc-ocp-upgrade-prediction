@@ -29,8 +29,8 @@ func getAddedFunctions(diffContent string, filename string, functionsMatch []Sim
 					break
 				}
 				functionsMatch = append(functionsMatch, SimpleFunctionRepresentation{
-					Fun: match[i],
-					Pkg: filepath.Dir(filename),
+					Fun:      match[i],
+					Pkg:      filepath.Dir(filename),
 					DeclFile: filename,
 				})
 			}
@@ -49,8 +49,8 @@ func getDeletedFunctions(diffContent string, filename string, functionsMatch []S
 					break
 				}
 				functionsMatch = append(functionsMatch, SimpleFunctionRepresentation{
-					Fun: match[i],
-					Pkg: filepath.Dir(filename),
+					Fun:      match[i],
+					Pkg:      filepath.Dir(filename),
 					DeclFile: filename,
 				})
 			}

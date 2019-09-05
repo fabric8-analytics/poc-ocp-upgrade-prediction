@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	 "os"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/serviceparser"
-	 "github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"github.com/tidwall/gjson"
 )
 
@@ -45,7 +45,7 @@ func main() {
 
 	if len(flag.Args()) > 0 {
 		for _, path := range flag.Args() {
-			
+
 			serviceName := ""
 			// Hardcoded for kube
 			if strings.HasSuffix(path, "vendor/k8s.io/kubernetes") {
@@ -53,7 +53,7 @@ func main() {
 			} else {
 				serviceName = ServicePackageMap[filepath.Base(path)]
 			}
-			
+
 			serviceVersion := utils.GetServiceVersion(path)
 			components := serviceparser.NewServiceComponents(serviceName)
 			gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
@@ -63,18 +63,17 @@ func main() {
 			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
 			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, *gopathCompilePtr)
-			sugarLogger.Infof("silly %s",  len(edges))
-
+			sugarLogger.Infof("silly %s", len(edges))
 
 			if err != nil {
 				sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
 			}
 			// Now create the compile time paths
-			sugarLogger.Infof("GOING to create compile time edges %s",  len(edges))
+			sugarLogger.Infof("GOING to create compile time edges %s", len(edges))
 			gremlin.CreateCompileTimePaths(edges, serviceName, serviceVersion)
-			
+
 		}
-	} 
+	}
 }
 
 func filterImports(imports []serviceparser.ImportContainer, serviceName string) []serviceparser.ImportContainer {
@@ -102,5 +101,3 @@ func parseImportPushGremlin(serviceName, serviceVersion string, components *serv
 		gremlin.CreateDependencyNodes(serviceName, serviceVersion, imported)
 	}
 }
-
-
