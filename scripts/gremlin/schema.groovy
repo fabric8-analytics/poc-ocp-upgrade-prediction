@@ -6,6 +6,26 @@ if(cluster_version == null) {
     cluster_version = mgmt.makePropertyKey('cluster_version').dataType(String.class).make();
 }
 
+// for service version
+service_version = mgmt.getPropertyKey('service_version');
+if(service_version == null) {
+    service_version = mgmt.makePropertyKey('service_version').dataType(String.class).make();
+}
+
+
+// for package
+packagenode = mgmt.getPropertyKey('package');
+if(packagenode == null) {
+    packagenode = mgmt.makePropertyKey('package').dataType(String.class).make();
+}
+
+// for function
+functionnode = mgmt.getPropertyKey('function');
+if(functionnode == null) {
+    functionnode = mgmt.makePropertyKey('function').dataType(String.class).make();
+}
+
+
 // for service
 version = mgmt.getPropertyKey('version');
 if(version == null) {
@@ -36,6 +56,9 @@ List<String> allKeys = [
         'name',
         'version',
         'cluster_version',
+	    'service_version',
+        'package',
+        'function',
         'local_name',
         'importpath'
 ]

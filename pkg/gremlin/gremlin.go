@@ -119,8 +119,12 @@ func ReadFile(filepath string) string {
 func CreateNewServiceVersionNode(clusterVersion, serviceName, version string) {
 	query := fmt.Sprintf(`
 		clusterVersion = g.V().has('vertex_label', 'clusterVersion').has('cluster_version', '%s');
-		serviceVersion = g.addV('service_version').property('vertex_label', 'service_version').property('name', '%s').property('version', '%s');
-		if (clusterVersion.hasNext()) { if (serviceVersion.hasNext()) { clusterVersion.next().addEdge('contains_service', serviceVersion.next()) } };`, clusterVersion, serviceName, version)
+		g.V().has('vertex_label','service_version').property('name', '%s').property('version', '%s').tryNext().orElseGet
+		{
+			serviceVersion = g.addV('service_version').property('vertex_label', 'service_version').property('name', '%s').property('version', '%s');
+			if (clusterVersion.hasNext()) { if (serviceVersion.hasNext()) { clusterVersion.next().addEdge('contains_service', serviceVersion.next()).property('edge_label', 'contains_service') } };
+		}
+		`, clusterVersion, serviceName, version, serviceName, version)
 	RunQuery(query)
 }
 
@@ -130,18 +134,21 @@ func NewPackageNodeQuery(serviceName, serviceVersion, packagename string) string
 	query := fmt.Sprintf(`
 	serviceVersion = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();
 	packageNode = g.addV('package').property('vertex_label', 'package').property('name', '%s').next();
-	serviceVersion.addEdge('contains_package', packageNode);`, serviceName, serviceVersion, packagename)
+	serviceVersion.addEdge('contains_package', packageNode).property('edge_label', 'contains_package');
+	  `, serviceName, serviceVersion, packagename)
 	return query
 }
 
 // CreateFunctionNodes adds function nodes to the graph and an edge between it and it's
 // parent service and it's package
 // DO NOT CALL NewPackageNodeQuery BEFORE YOU'VE ENTERED ALL THE NODES FOR A PACKAGE
-func CreateFunctionNodes(functionNames []string) string {
+func CreateFunctionNodes(packagename string, functionNames []string) string {
 	var fullQuery string
 	for _, fn := range functionNames {
-		query := fmt.Sprintf(`functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').next();
-								packageNode.addEdge('has_fn', functionNode);`, fn)
+		query := fmt.Sprintf(`
+				functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').property('package','%s').next();
+				packageNode.addEdge('has_fn', functionNode).property('edge_label', 'has_fn');	
+				`, fn, packagename)
 		fullQuery += query
 	}
 	return fullQuery
@@ -151,7 +158,10 @@ func CreateFunctionNodes(functionNames []string) string {
 // CALL THIS JUST ONCE PER RUN OF THIS SCRIPT, THAT IS HOW THIS CODE IS DESIGNED.
 func CreateClusterVerisonNode(clusterVersion string) {
 	query := fmt.Sprintf(`
-		clusterVersion = g.addV('clusterVersion').property('vertex_label', 'clusterVersion').property('cluster_version', '%s').next()`, clusterVersion)
+			g.V().has('vertex_label','clusterVersion').property('cluster_version', '%s').tryNext().orElseGet
+			{
+				clusterVersion = g.addV('clusterVersion').property('vertex_label', 'clusterVersion').property('cluster_version', '%s').next()
+			} `, clusterVersion, clusterVersion)
 	response := RunQuery(query)
 	sugarLogger.Debugf(" the clusterversion response %s ", response)
 }
@@ -165,7 +175,7 @@ func RunGroovyScript(scriptPath string) {
 
 func CreateDependencyNodes(serviceName, serviceVersion string, ic []serviceparser.ImportContainer) {
 	var batchcount int
-	batchsize := 20
+	batchsize := 10
 	queryBase := fmt.Sprintf(
 		`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s');`, serviceName, serviceVersion)
 	query := queryBase
@@ -175,10 +185,10 @@ func CreateDependencyNodes(serviceName, serviceVersion string, ic []serviceparse
 				  if (serviceNode.hasNext()) {
 					if (importNode.hasNext()) {
 						copyimportNode = importNode.next();
-					  	serviceNode.next()addEdge('depends_on', copyimportNode);
+					  	serviceNode.next()addEdge('depends_on', copyimportNode).property('edge_label', 'depends_on');
 					  	packageNode = g.V().has('vertex_label', 'package').has('name', '%s');
 					  	if (packageNode.hasNext()) {
-							copyimportNode.addEdge('affects_package', packageNode.next());
+							copyimportNode.addEdge('affects_package', packageNode.next()).property('edge_label', 'affects_package');
 					  	}
 					}
 				} 
@@ -205,12 +215,13 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string, c
 	gremlinQuery := ""
 	for pkg, functions := range components.AllPkgFunc {
 		gremlinQuery += NewPackageNodeQuery(serviceName, serviceVersion, pkg)
-		gremlinQuery += CreateFunctionNodes(functions)
+		gremlinQuery += CreateFunctionNodes(pkg, functions)
 		RunQuery(gremlinQuery)
 		gremlinQuery = ""
 	}
 }
 
+/*
 func getServiceName(packageName string) string {
 	serviceName := "hypershift"
 	if strings.Index(packageName, "kubernetes") != -1 {
@@ -218,12 +229,13 @@ func getServiceName(packageName string) string {
 	}
 	return serviceName
 }
+*/
 
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
 func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serviceVersion string) {
 	queryString := ""
 	batchcount := 0
-	batchsize := 50
+	batchsize := 40
 
 	for _, edge := range edges {
 		callerFn := edge.Caller.Name()
@@ -240,9 +252,17 @@ func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serv
 
 		batchsizestring, _ := os.LookupEnv("BATCH_SIZE_CREATE_COMPILE_TIME_PATHS")
 		batchsize, _ = strconv.Atoi(batchsizestring)
+		queryString += fmt.Sprintf(`
+		from = g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
+		to = g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s'); 
+		if (from.hasNext()) { 
+			if (to.hasNext()) { 
+				from.next().addEdge('compile_time_call', to.next()).property('edge_label', 'compile_time_call'); 
+			}
+		}		
+		`, callerPkg, callerFn, calleePkg, calleeFn)
+
 		if batchcount < batchsize {
-			queryString += fmt.Sprintf(`from = g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');to = g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s'); if (from.hasNext()) { if (to.hasNext()) { from.next().addEdge('compile_time_call', to.next()).property('edge_label', 'compile_time_call'); }};		
-			`, callerPkg, callerFn, calleePkg, calleeFn)
 			batchcount = batchcount + 1
 		} else {
 			RunQuery(queryString)

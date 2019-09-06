@@ -43,6 +43,7 @@ func main() {
 
 	gremlin.CreateClusterVerisonNode(clusterVersion)
 
+	serviceVersion := "NONE"
 	if len(flag.Args()) > 0 {
 		for _, path := range flag.Args() {
 
@@ -52,9 +53,8 @@ func main() {
 				serviceName = "hyperkube"
 			} else {
 				serviceName = ServicePackageMap[filepath.Base(path)]
+				serviceVersion = utils.GetServiceVersion(path)
 			}
-
-			serviceVersion := utils.GetServiceVersion(path)
 			components := serviceparser.NewServiceComponents(serviceName)
 			gremlin.CreateNewServiceVersionNode(clusterVersion, serviceName, serviceVersion)
 
@@ -63,7 +63,7 @@ func main() {
 			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
 			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, *gopathCompilePtr)
-			sugarLogger.Infof("silly %s", len(edges))
+			sugarLogger.Infof(" Number of compile time paths for service %s are  %s",  serviceName, len(edges))
 
 			if err != nil {
 				sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
