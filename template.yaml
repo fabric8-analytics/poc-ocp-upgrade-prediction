@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: poc-ocp-upgrade-prediction
+metadata:
+  name: poc-ocp-upgrade-prediction
+  annotations:
+    description: poc-ocp-upgrade-prediction
+objects:
+  - apiVersion: v1
+    kind: DeploymentConfig
+    metadata:
+      labels:
+        service: poc-ocp-upgrade-prediction
+      name: poc-ocp-upgrade-prediction
+    spec:
+      replicas: "${{REPLICAS}}"
+      selector:
+        service: poc-ocp-upgrade-prediction
+      template:
+        metadata:
+          labels:
+            service: poc-ocp-upgrade-prediction
+        spec:
+          containers:
+            - command:
+                - /go/bin/api
+              env:
+                - name: GREMLIN_REST_URL
+                  value: <invalid> # Set this value for your environment
+                - name: GH_TOKEN
+                  value: <invalid> # Set this value for your environment.
+              image: "${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${IMAGE_TAG}"
+              name: poc-ocp-upgrade-prediction
+              ports:
+                - containerPort: ${{API_SERVICE_PORT}}
+              livenessProbe:
+                initialDelaySeconds: 60
+                periodSeconds: 60
+                timeoutSeconds: 30
+                failureThreshold: 3
+                successThreshold: 1
+                tcpSocket:
+                  port: ${{API_SERVICE_PORT}}
+              readinessProbe:
+                tcpSocket:
+                  port: ${{API_SERVICE_PORT}}
+                failureThreshold: 3
+                successThreshold: 1
+                initialDelaySeconds: 20
+                periodSeconds: 60
+                timeoutSeconds: 30
+              resources:
+                requests:
+                  cpu: ${CPU_REQUEST}
+                  memory: ${MEMORY_REQUEST}
+                limits:
+                  cpu: ${CPU_LIMIT}
+                  memory: ${MEMORY_LIMIT}
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        service: poc-ocp-upgrade-prediction
+      name: poc-ocp-upgrade-prediction
+    spec:
+      ports:
+        - port: ${{API_SERVICE_PORT}}
+          name: "${API_SERVICE_PORT}"
+          targetPort: ${{API_SERVICE_PORT}}
+          protocol: TCP
+      selector:
+        service: poc-ocp-upgrade-prediction
+  - apiVersion: v1
+    kind: Route
+    metadata:
+      name: poc-ocp-upgrade-prediction
+    spec:
+      host: ${API_HOSTNAME}
+      to:
+        kind: Service
+        name: poc-ocp-upgrade-prediction
+
+parameters:
+  - description: A hostname where the API should be exposed (will be auto-generated if empty)
+    displayName: API hostname
+    required: false
+    name: API_HOSTNAME
+
+  - description: CPU request
+    displayName: CPU request
+    required: true
+    name: CPU_REQUEST
+    value: "128m"
+
+  - description: CPU limit
+    displayName: CPU limit
+    required: true
+    name: CPU_LIMIT
+    value: "500m"
+
+  - description: Memory request
+    displayName: Memory request
+    required: true
+    name: MEMORY_REQUEST
+    value: "20Mi"
+
+  - description: Memory limit
+    displayName: Memory limit
+    required: true
+    name: MEMORY_LIMIT
+    value: "512Mi"
+
+  - description: Docker registry where the image is
+    displayName: Docker registry
+    required: true
+    name: DOCKER_REGISTRY
+    value: "docker.io"
+
+  - description: Docker image to use
+    displayName: Docker image
+    required: true
+    name: DOCKER_IMAGE
+    value: "avgupta/poc-ocp-upgrade-prediction"
+
+  - description: Image tag
+    displayName: Image tag
+    required: true
+    name: IMAGE_TAG
+    value: "latest"
+
+  - description: Number of deployment replicas
+    displayName: Number of deployment replicas
+    required: true
+    name: REPLICAS
+    value: "1"
+
+  - description: Port Number
+    displayName: Port Number
+    required: true
+    name: API_SERVICE_PORT
+    value: "8080"
