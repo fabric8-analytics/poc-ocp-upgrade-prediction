@@ -135,7 +135,7 @@ func NewPackageNodeQuery(serviceName, serviceVersion, packagename string) string
 	serviceVersion = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s').next();
 	packageNode = g.addV('package').property('vertex_label', 'package').property('name', '%s').next();
 	serviceVersion.addEdge('contains_package', packageNode).property('edge_label', 'contains_package');
-	  `, serviceName, serviceVersion, packagename)	
+	  `, serviceName, serviceVersion, packagename)
 	return query
 }
 
@@ -145,10 +145,10 @@ func NewPackageNodeQuery(serviceName, serviceVersion, packagename string) string
 func CreateFunctionNodes(packagename string, functionNames []string) string {
 	var fullQuery string
 	for _, fn := range functionNames {
-			query := fmt.Sprintf(`		
-				functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').property('part_of_package','%s').next();
+		query := fmt.Sprintf(`
+				functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').property('package','%s').next();
 				packageNode.addEdge('has_fn', functionNode).property('edge_label', 'has_fn');	
-				`,  fn, packagename)
+				`, fn, packagename)
 		fullQuery += query
 	}
 	return fullQuery
@@ -230,7 +230,6 @@ func getServiceName(packageName string) string {
 	return serviceName
 }
 */
-
 
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
 func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serviceVersion string) {
