@@ -52,7 +52,7 @@ func main() {
 			if strings.HasSuffix(path, "vendor/k8s.io/kubernetes") {
 				serviceName = "hyperkube"
 			} else {
-				serviceName = ServicePackageMap[filepath.Base(path)]
+				serviceName = ServicePackageMap[filepath.Base(path)].servicename
 				serviceVersion = utils.GetServiceVersion(path)
 			}
 			components := serviceparser.NewServiceComponents(serviceName)
@@ -62,7 +62,7 @@ func main() {
 			components.ParseService(serviceName, path)
 			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
-			edges, err := serviceparser.GetCompileTimeCalls(path, []string{"./cmd/" + serviceName}, *gopathCompilePtr)
+			edges, err := serviceparser.GetCompileTimeCalls(path, ServicePackageMap[filepath.Base(path)].cmdname, *gopathCompilePtr)
 			sugarLogger.Infof(" Number of compile time paths for service %s are  %s",  serviceName, len(edges))
 
 			if err != nil {
