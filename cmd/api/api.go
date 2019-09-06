@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/ghpr"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/gremlin"
@@ -92,8 +95,23 @@ func prConfidenceScore(w http.ResponseWriter, r *http.Request) {
 	w.Write(output)
 }
 
+func livenessProbe(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(200)
+}
+func readinessProbe(w http.ResponseWriter, r *http.Request) {
+	// TODO: Check if gremlin is reachable.
+	timeout := time.Duration(1 * time.Second)
+	_, err := net.DialTimeout("tcp", os.Getenv("GREMLIN_REST_URL"), timeout)
+	if err != nil {
+	} else {
+		w.WriteHeader(200)
+	}
+}
+
 func main() {
 	http.HandleFunc("/api/v1/createprnode", processPR)
+	http.HandleFunc("/api/v1/liveness", livenessProbe)
+	http.HandleFunc("/api/v1/readiness", readinessProbe)
 	http.HandleFunc("/api/v1/getprconfidence", prConfidenceScore)
 	address := ":8080"
 	log.Println("Starting server on address", address)
