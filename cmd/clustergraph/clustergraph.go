@@ -30,6 +30,7 @@ func main() {
 
 	flag.Parse()
 	fmt.Printf(" Args are %s", flag.Args())
+
 	payloadInfo, err := exec.Command("oc", "adm", "release", "info", "--commits=true",
 		fmt.Sprintf("quay.io/openshift-release-dev/ocp-release:%s", *clusterversion), "-o", "json").CombinedOutput()
 	if err != nil {
@@ -42,10 +43,12 @@ func main() {
 	sugarLogger.Infow("Cluster version is", "clusterVersion", clusterVersion)
 
 	gremlin.CreateClusterVerisonNode(clusterVersion)
+	serviceVersion := "sha256:155ef40a64608c946ca9ca0310bbf88f5a4664b2925502b3acac86847bc158e6"
+	numberofservices := len(flag.Args())
+	compileTimePaths := make([]ServiceCompileTimeCalls, numberofservices)
 
-	serviceVersion := "NONE"
 	if len(flag.Args()) > 0 {
-		for _, path := range flag.Args() {
+		for index, path := range flag.Args() {
 
 			serviceName := ""
 			// Hardcoded for kube
@@ -63,15 +66,17 @@ func main() {
 			gremlin.AddPackageFunctionNodesToGraph(serviceName, serviceVersion, components)
 			parseImportPushGremlin(serviceName, serviceVersion, components)
 			edges, err := serviceparser.GetCompileTimeCalls(path, ServicePackageMap[filepath.Base(path)].cmdname, *gopathCompilePtr)
-			sugarLogger.Infof(" Number of compile time paths for service %s are  %s",  serviceName, len(edges))
+			compileTimePaths[index] = ServiceCompileTimeCalls{servicename: serviceName, edges: edges}
+			sugarLogger.Infof(" Number of compile time paths for service %s are  %s", serviceName, len(edges))
 
 			if err != nil {
-				sugarLogger.Errorf("Got error: %v, cannot build graph for %s", err, serviceName)
+				sugarLogger.Errorf("Got error: %v, in calculating compile time paths %s", err, serviceName)
 			}
-			// Now create the compile time paths
-			sugarLogger.Infof("GOING to create compile time edges %s", len(edges))
-			gremlin.CreateCompileTimePaths(edges, serviceName, serviceVersion)
-
+		}
+		// Create compile time paths for all the functions observed under each package of each known service
+		for index, _ := range compileTimePaths {
+			sugarLogger.Infof("For service %s GOING to create compile time edges %s ", compileTimePaths[index].servicename, len(compileTimePaths[index].edges))
+			gremlin.CreateCompileTimePaths(compileTimePaths[index].edges, compileTimePaths[index].servicename)
 		}
 	}
 }
