@@ -75,4 +75,5 @@ allKeys.each { k ->
 // Create the edge indexes
 edgeLabel = mgmt.makePropertyKey('edge_label').dataType(String.class).make();
 mgmt.buildIndex('index_prop_key_edge_label', Edge.class).addKey(edgeLabel).buildCompositeIndex();
+mgmt.buildIndex('index_composite_vertex', Vertex.class).addKey(mgmt.getPropertyKey('vertex_label')).addKey(packagenode).addKey(service_version).addKey(name).buildCompositeIndex();
 mgmt.commit();
