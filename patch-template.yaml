@@ -1,0 +1,10 @@
+imports:
+  godefaultfmt: fmt
+func_name:
+  logStatement
+func_body: |
+  func logStatement() {
+    godefaultfmt.Println("Hello World.")
+  }
+prepend_body: |
+  defer logStatement()
