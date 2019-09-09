@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
+	"strings"
+	"strconv"
 	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 
 	"go.uber.org/zap"
@@ -15,6 +16,7 @@ var slogger = logger.Sugar()
 
 // PatchSource patches a source path to add tracing.
 func PatchSource(sourcePath, configYamlPath string) {
+	index := 0
 	addedTracer := make(map[string]bool)
 	slogger.Infof("Patching sourcePath: %v\n", sourcePath)
 	err := filepath.Walk(sourcePath, func(path string, f os.FileInfo, err error) error {
@@ -34,7 +36,8 @@ func PatchSource(sourcePath, configYamlPath string) {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
 			_, hasTracer := addedTracer[dirName]
-			err = patchFile(path, configYamlPath)
+			err = patchFile(path, configYamlPath,index)
+			index++
 			if err != nil {
 				return err
 			}
@@ -52,23 +55,34 @@ func PatchSource(sourcePath, configYamlPath string) {
 	}
 }
 
-func patchFile(filePath, configYamlPath string) error {
+func patchFile(filePath, configYamlPath string, fileIndex int) error {
 
 	yamlComponents := utils.ReadCodeFromYaml(configYamlPath)
-	if yamlComponents.FuncAdd != "" {
-		patched := AddFuncToSource(filePath, yamlComponents.FuncAdd)
-		err := utils.WriteStringToFile(filePath, string(patched))
+	functionName := ""
+
+	if yamlComponents.FuncName != "" {
+		functionName = yamlComponents.FuncName 
+	}
+	var modifiedFunction string
+	modifiedFunction = strconv.Itoa(int(fileIndex))
+	modifiedFunction = functionName + modifiedFunction
+
+	if yamlComponents.PrependBody != "" {
+		modifiedContent := strings.ReplaceAll(yamlComponents.PrependBody, functionName, modifiedFunction)
+		patched, err := AppendExpr(filePath, modifiedContent)
+		if err != nil {
+			return err
+		}
+		err = utils.WriteStringToFile(filePath, string(patched))
 		if err != nil {
 			return err
 		}
 	}
 
-	if yamlComponents.PrependBody != "" {
-		patched, err := AppendExpr(filePath, yamlComponents.PrependBody)
-		if err != nil {
-			return err
-		}
-		err = utils.WriteStringToFile(filePath, string(patched))
+	if yamlComponents.FuncBody != "" {
+		modifiedContent := strings.ReplaceAll(yamlComponents.FuncBody, functionName, modifiedFunction)
+		patched := AddFuncToSource(filePath, modifiedContent)
+		err := utils.WriteStringToFile(filePath, string(patched))
 		if err != nil {
 			return err
 		}
