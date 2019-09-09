@@ -69,6 +69,7 @@ func RunQuery(query string) map[string]interface{} {
 			return result
 		}
 		response, err := client.Do(request)
+		sugarLogger.Debugf(" the response %s ", response)
 		if err != nil {
 			fmt.Print(err)
 			return result
@@ -142,13 +143,13 @@ func NewPackageNodeQuery(serviceName, serviceVersion, packagename string) string
 // CreateFunctionNodes adds function nodes to the graph and an edge between it and it's
 // parent service and it's package
 // DO NOT CALL NewPackageNodeQuery BEFORE YOU'VE ENTERED ALL THE NODES FOR A PACKAGE
-func CreateFunctionNodes(packagename string, functionNames []string) string {
+func CreateFunctionNodes(serviceName string, packagename string, functionNames []string) string {
 	var fullQuery string
 	for _, fn := range functionNames {
 		query := fmt.Sprintf(`
-				functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').property('package','%s').next();
+				functionNode = g.addV('function').property('vertex_label', 'function').property('name', '%s').property('service_name','%s').property('package','%s').next();
 				packageNode.addEdge('has_fn', functionNode).property('edge_label', 'has_fn');	
-				`, fn, packagename)
+				`, fn, serviceName, packagename)
 		fullQuery += query
 	}
 	return fullQuery
@@ -162,8 +163,8 @@ func CreateClusterVerisonNode(clusterVersion string) {
 			{
 				clusterVersion = g.addV('clusterVersion').property('vertex_label', 'clusterVersion').property('cluster_version', '%s').next()
 			} `, clusterVersion, clusterVersion)
-	response := RunQuery(query)
-	sugarLogger.Debugf(" the clusterversion response %s ", response)
+	RunQuery(query)
+	//sugarLogger.Debugf(" the clusterversion response %s ", response)
 }
 
 // RunGroovyScript takes the path to a groovy script and runs it at the Gremlin console.
@@ -175,7 +176,7 @@ func RunGroovyScript(scriptPath string) {
 
 func CreateDependencyNodes(serviceName, serviceVersion string, ic []serviceparser.ImportContainer) {
 	var batchcount int
-	batchsize := 10
+	batchsize := 40
 	queryBase := fmt.Sprintf(
 		`serviceNode = g.V().has('vertex_label', 'service_version').has('name', '%s').has('version', '%s');`, serviceName, serviceVersion)
 	query := queryBase
@@ -215,7 +216,7 @@ func AddPackageFunctionNodesToGraph(serviceName string, serviceVersion string, c
 	gremlinQuery := ""
 	for pkg, functions := range components.AllPkgFunc {
 		gremlinQuery += NewPackageNodeQuery(serviceName, serviceVersion, pkg)
-		gremlinQuery += CreateFunctionNodes(pkg, functions)
+		gremlinQuery += CreateFunctionNodes(serviceName, pkg, functions)
 		RunQuery(gremlinQuery)
 		gremlinQuery = ""
 	}
@@ -232,17 +233,16 @@ func getServiceName(packageName string) string {
 */
 
 // CreateCompileTimePaths creates compile time paths from the callgraph output.
-func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serviceVersion string) {
+func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName string) {
 	queryString := ""
 	batchcount := 0
-	batchsize := 40
+	batchsize := 60
 
 	for _, edge := range edges {
 		callerFn := edge.Caller.Name()
 		callerPkg := fmt.Sprintf("%v", edge.Caller.Package())
 		callerPkg = strings.TrimPrefix(callerPkg, "package ")
 
-		// Only consider itself and kubernetes for now.
 
 		calleeFn := edge.Callee.Name()
 		calleePkg := fmt.Sprintf("%v", edge.Callee.Package())
@@ -253,14 +253,14 @@ func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName, serv
 		batchsizestring, _ := os.LookupEnv("BATCH_SIZE_CREATE_COMPILE_TIME_PATHS")
 		batchsize, _ = strconv.Atoi(batchsizestring)
 		queryString += fmt.Sprintf(`
-		from = g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s');
-		to = g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s'); 
+		from = g.V().has('vertex_label', 'function').has('package', '%s').has('name', '%s').has('service_name', '%s');
+		to = g.V().has('vertex_label', 'function').has('package', '%s').has('name', '%s');
 		if (from.hasNext()) { 
 			if (to.hasNext()) { 
 				from.next().addEdge('compile_time_call', to.next()).property('edge_label', 'compile_time_call'); 
 			}
 		}		
-		`, callerPkg, callerFn, calleePkg, calleeFn)
+		`, callerPkg, callerFn, serviceName, calleePkg, calleeFn)
 
 		if batchcount < batchsize {
 			batchcount = batchcount + 1

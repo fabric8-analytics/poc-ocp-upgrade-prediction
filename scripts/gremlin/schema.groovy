@@ -52,6 +52,11 @@ if(importpath == null) {
     importpath = mgmt.makePropertyKey('importpath').dataType(String.class).make();
 }
 
+serviceName = mgmt.getPropertyKey('service_name');
+if (serviceName == null) {
+    serviceName = mgmt.makePropertyKey('service_name').dataType(String.class).make();
+}
+
 List<String> allKeys = [
         'name',
         'version',
@@ -75,4 +80,5 @@ allKeys.each { k ->
 // Create the edge indexes
 edgeLabel = mgmt.makePropertyKey('edge_label').dataType(String.class).make();
 mgmt.buildIndex('index_prop_key_edge_label', Edge.class).addKey(edgeLabel).buildCompositeIndex();
+mgmt.buildIndex('index_composite_func_vertex', Vertex.class).addKey(mgmt.getPropertyKey('vertex_label')).addKey(packagenode).addKey(serviceName).addKey(name).buildCompositeIndex();
 mgmt.commit();
