@@ -299,7 +299,7 @@ func GetPRConfidenceScore(points *serviceparser.TouchPoints) PrConfidence {
 
 	}
 	if countCompileTime > 0 {
-		confScore = float64(countRunTime+10) / float64(countCompileTime)
+		confScore = float64(countRunTime) / float64(countCompileTime)
 	} else {
 		confScore = -1
 	}
