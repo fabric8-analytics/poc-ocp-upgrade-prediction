@@ -333,9 +333,9 @@ func GetCompileTimePathsAffectedByPR(points *serviceparser.TouchPoints) []map[st
 func GetRunTimePathsAffectedByPR(points *serviceparser.TouchPoints) []map[string]interface{} {
 	var runPaths []map[string]interface{}
 	for _, point := range points.Flatten() {
-		pathsIn := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').repeat(inE('run_time_call').outV().dedup()).until(inE('compile_time_call').count().is(0)).path()`, point.Pkg, point.Fun)
+		pathsIn := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').repeat(inE('run_time_call').outV().dedup()).until(inE('run_time_call').count().is(0)).path()`, point.Pkg, point.Fun)
 		sugarLogger.Infof("%v %v\n", "Running query: ", pathsIn)
-		pathsOut := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').repeat(outE('run_time_call').inV().dedup()).until(outE('compile_time_call').count().is(0)).path()`, point.Pkg, point.Fun)
+		pathsOut := fmt.Sprintf(`g.V().has('vertex_label', 'package').has('name', '%s').out().has('vertex_label', 'function').has('name', '%s').repeat(outE('run_time_call').inV().dedup()).until(outE('run_time_call').count().is(0)).path()`, point.Pkg, point.Fun)
 		responseIn := RunQueryUnMarshaled(pathsIn)
 		responseOut := RunQueryUnMarshaled(pathsOut)
 		respArr := gjson.Get(responseIn, "result.data").Array()
