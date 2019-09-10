@@ -329,7 +329,8 @@ func IsRestrictedDir(dirname string) bool {
 // PatchSourceComponents need to be parsed from the yaml that is supplied to patchsource binary.
 type PatchSourceComponents struct {
 	Imports     map[string]string `yaml:"imports,omitempty"`
-	FuncAdd     string            `yaml:"func_add,omitempty"`
+	FuncName    string	      `yaml:"func_name,omitempty"`
+	FuncBody    string            `yaml:"func_body,omitempty"`
 	PrependBody string            `yaml:"prepend_body,omitempty"`
 }
 
