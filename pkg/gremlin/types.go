@@ -8,6 +8,8 @@ type PrConfidence struct {
 	TouchPoints      serviceparser.TouchPoints `json:"touch_points"`
 	CompilePaths     []map[string]interface{}  `json:"compile_paths"`
 	CompilePathCount int                       `json:"compile_path_count"`
+	RunTimePaths     []map[string]interface{}  `json:"run_time_paths"`
+	RuntimePathCount int                       `json:"runtime_path_count"`
 }
 
 type PRPayload struct {
