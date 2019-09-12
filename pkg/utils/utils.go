@@ -321,7 +321,7 @@ func IsRestrictedDir(dirname string) bool {
 		return true
 	}
 	// Map because this language has no sets. I know, very ugly.
-	skipList := map[string]bool{".git": true, "third_party": true, "test": true, "staging": true, "tools": true}
+	skipList := map[string]bool{".git": true, "third_party": true, "test": true, "tools": true}
 	_, isPresent := skipList[dirname]
 	return isPresent
 }
