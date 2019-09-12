@@ -1,10 +1,64 @@
 imports:
-  godefaultfmt: fmt
+  patchfmt: fmt
+  patchinfo: runtime/debug
+  patchos: os
+  patchio: io
+  patchbytes: bytes
+  patchstack: github.com/maruel/panicparse/stack
 func_name:
   logStatement
 func_body: |
   func logStatement() {
-    godefaultfmt.Println("Hello World.")
+    callstack := patchinfo.Stack()
+    in := patchbytes.NewBufferString(string(callstack))
+    c, err := patchstack.ParseDump(in, patchos.Stdout, true)
+    if err != nil {
+        return
+    }
+
+    // Find out similar goroutine traces and group them into buckets.
+    buckets := patchstack.Aggregate(c.Goroutines, patchstack.AnyValue)
+
+    // Calculate alignment.
+    srcLen := 0
+    pkgLen := 0
+    for _, bucket := range buckets {
+        for _, line := range bucket.Signature.Stack.Calls {
+            if l := len(line.SrcLine()); l > srcLen {
+                srcLen = l
+            }
+            if l := len(line.Func.PkgName()); l > pkgLen {
+                pkgLen = l
+            }
+        }
+    }
+
+    for _, bucket := range buckets {
+        // Print the goroutine header.
+        extra := ""
+        if s := bucket.SleepString(); s != "" {
+            extra += " [" + s + "]"
+        }
+        if bucket.Locked {
+            extra += " [locked]"
+        }
+        if c := bucket.CreatedByString(false); c != "" {
+            extra += " [Created by " + c + "]"
+        }
+        patchfmt.Printf("%s %d: %s%s\n", bucket.IDs, len(bucket.IDs), bucket.State, extra)
+
+        // Print the stack lines.
+        for _, line := range bucket.Stack.Calls {
+            patchfmt.Print("--------------------------------------------------------")
+            patchfmt.Printf(
+                "    %-*s %-*s %s(%s)\n",
+                pkgLen, line.Func.PkgName(), srcLen, line.SrcLine(),
+                line.Func.Name(), &line.Args)
+        }
+        if bucket.Stack.Elided {
+            patchio.WriteString(patchos.Stdout, "    (...)\n")
+        }
+    }
   }
 prepend_body: |
   defer logStatement()
