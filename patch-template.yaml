@@ -46,10 +46,10 @@ func_body: |
             extra += " [Created by " + c + "]"
         }
         patchfmt.Printf("%s %d: %s%s\n", bucket.IDs, len(bucket.IDs), bucket.State, extra)
+        patchfmt.Print("--------------------------------------------------------")
 
         // Print the stack lines.
         for _, line := range bucket.Stack.Calls {
-            patchfmt.Print("--------------------------------------------------------")
             patchfmt.Printf(
                 "    %-*s %-*s %s(%s)\n",
                 pkgLen, line.Func.PkgName(), srcLen, line.SrcLine(),
