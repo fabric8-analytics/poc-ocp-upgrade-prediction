@@ -13,4 +13,3 @@ sed -i 's/hyperkube controller-manager/hyperkube kube-controller-manager/g' $GOP
 hack/install-etcd.sh
 export PATH=$GOPATH/src/github.com/openshift/origin/_output/tools/etcd/bin:$PATH
 hack/local-up-master/master.sh
-github.com/maruel/panicparse/stack
