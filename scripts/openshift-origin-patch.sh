@@ -11,6 +11,6 @@ cp -rf $GOPATH/src/github.com/maruel/ $GOPATH/src/github.com/openshift/origin/_o
 hack/build-go.sh cmd/hypershift
 sed -i 's/hyperkube controller-manager/hyperkube kube-controller-manager/g' $GOPATH/src/github.com/openshift/origin/hack/local-up-master/lib.sh
 hack/install-etcd.sh
-export PATH=/home/redanalyze/go-code/src/github.com/openshift/origin/_output/tools/etcd/bin:$PATH
+export PATH=$GOPATH/src/github.com/openshift/origin/_output/tools/etcd/bin:$PATH
 hack/local-up-master/master.sh
 github.com/maruel/panicparse/stack
