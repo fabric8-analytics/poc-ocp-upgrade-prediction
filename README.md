@@ -87,7 +87,12 @@ curl -X GET \
 }'
 ```
 ### Patching source code to add imports/functions and prepend statements: patchsource
-* The patchsource binary takes in a source directory and a yaml config which contains the imports to be added to each non-ignored package/file etc. and patches all the .go files in the source directory to modify them.
+* The patchsource binary takes in a source directory and a yaml config which contains the imports to be added to each non-ignored package/file etc. and patches all the .go files in the source directory to modify them. 
+Please refer to 'patchtemplate.yaml'. Patching involve transfer of all the runtime paths to AWS SQS queues for removing duplicate call stacks. You need to set these env. variables:
+1) AWS_SQS_QueueName (Name of the queue where runtime call stacks are captured)
+2) AWS_ACCESS_KEY_ID
+3) AWS_SECRET_ACCESS_KEY
+
 * Sample config:
 ```yaml
 imports:
