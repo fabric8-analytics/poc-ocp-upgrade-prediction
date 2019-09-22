@@ -356,9 +356,16 @@ func ReadCodeFromYaml(configYamlPath string) *PatchSourceComponents {
 	return &components
 }
 
+// Create a new SQS queue if not created already to store  the entire raw collection of runtime call stacks
 func CreateSQSQueue(queuename string) {
+
+	AWSSQSRegion := os.Getenv("AWS_SQS_REGION")
+	if AWSSQSRegion == "" {
+		AWSSQSRegion = "us-west-2"
+	}
+
 	sess, err := awssession.NewSession(&aws.Config{
-        Region: aws.String("us-west-2")},
+        Region: aws.String(AWSSQSRegion)},
 	)
 	if err != nil {
 		sugarLogger.Fatalf("Could not connect to AWS for creating SQS queue %s : %v", queuename, err)
@@ -382,8 +389,8 @@ func CreateSQSQueue(queuename string) {
 	}
 }
 
+// publish entire raw collection of runtime call stacks
 func PublishCallStack(callstackjson string, callstackid int) {
-
 	if AWSService == nil {
 			fmt.Println("--- AWS session is not available")
 			AWSSQSQueueName = os.Getenv("AWS_SQS_QueueName")
