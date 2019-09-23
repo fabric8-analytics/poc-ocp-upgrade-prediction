@@ -54,6 +54,10 @@ Inside the dynamodb subrepo, lives a pom.xml that we use to start dynamodb. Insi
                 "KUBERNETES_SERVICE_PORT": 6443, // Port on which your Kubernetes cluster API is running, this is generally 6443 AFAIK.
                 "KUBERNETES_SERVICE_HOST": "PATH_TO_YOUR_DEV_CLUSTER_API", // Path to a running Kubernetes cluster that we need to run the end to end tests/service end to end tests. Is of the form api.*.devcluster.openshift.com
                 "REMOTE_SERVER_URL": "" // This is the path to the layer running the origin end-to-end test wrapper.
+ 	            	"AWS_SQS_QueueName":   //Name of the queue where runtime call stacks are captured
+                "AWS_SQS_REGION":     // AWS region where SQS queue is located
+ 		            "AWS_ACCESS_KEY_ID" :   // AWS access key
+		            "AWS_SECRET_ACCESS_KEY" : // AWS secret 
             }
 ```
 
@@ -87,7 +91,9 @@ curl -X GET \
 }'
 ```
 ### Patching source code to add imports/functions and prepend statements: patchsource
-* The patchsource binary takes in a source directory and a yaml config which contains the imports to be added to each non-ignored package/file etc. and patches all the .go files in the source directory to modify them.
+* The patchsource binary takes in a source directory and a yaml config which contains the imports to be added to each non-ignored package/file etc. and patches all the .go files in the source directory to modify them. 
+Please refer to 'patchtemplate.yaml'. Patching involve transfer of all the runtime paths to AWS SQS queues for removing duplicate call stacks. 
+
 * Sample config:
 ```yaml
 imports:
@@ -102,7 +108,7 @@ prepend_body: |
 ```
 The above yaml, when saved in a file called `source_config.yaml` and passed to the binary as with:
 ```bash
-  $ patchsource --source-dir=[path_to_origin_dir] --code-config-yaml=sources_config.yaml  # Excludes vendor, to include it see below.
+  $ patchsource --source-dir=[path_to_origin_dir] --AWS_SQS_REGION=us-west-2 --AWS_SQS_QueueName=queue_name --code-config-yaml=sources_config.yaml  # Excludes vendor, to include it see below.
 ```
 will change all packages of the source pointed to by source dir to:
   - Add imports marked under imports with the name as the key and the importpath as the value to the function, i.e. `godefaultfmt: fmt` becomes `import godefaultfmt "fmt"` in the Go source code.

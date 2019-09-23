@@ -1,10 +1,12 @@
 imports:
-  patchfmt: fmt
   patchinfo: runtime/debug
   patchos: os
   patchio: io
   patchbytes: bytes
   patchstack: github.com/maruel/panicparse/stack
+  patchjson:  encoding/json
+  patchqueue: github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils
+
 func_name:
   logStatement
 func_body: |
@@ -17,14 +19,14 @@ func_body: |
     }
 
     // Find out similar goroutine traces and group them into buckets.
-    buckets := patchstack.Aggregate(c.Goroutines, patchstack.AnyValue)
+    buckets := patchstack.Aggregate(c.Goroutines, patchstack.ExactLines)
 
     // Calculate alignment.
     srcLen := 0
     pkgLen := 0
     for _, bucket := range buckets {
         for _, line := range bucket.Signature.Stack.Calls {
-            if l := len(line.SrcLine()); l > srcLen {
+            if l := len(line.FullSrcLine()); l > srcLen {
                 srcLen = l
             }
             if l := len(line.Func.PkgName()); l > pkgLen {
@@ -36,6 +38,8 @@ func_body: |
     for _, bucket := range buckets {
         // Print the goroutine header.
         extra := ""
+        bucketjson, _ := patchjson.Marshal(bucket)
+        go patchqueue.PublishCallStack(string(bucketjson), 1)
         if s := bucket.SleepString(); s != "" {
             extra += " [" + s + "]"
         }
@@ -44,16 +48,6 @@ func_body: |
         }
         if c := bucket.CreatedByString(false); c != "" {
             extra += " [Created by " + c + "]"
-        }
-        patchfmt.Printf("%s %d: %s%s\n", bucket.IDs, len(bucket.IDs), bucket.State, extra)
-        patchfmt.Print("--------------------------------------------------------")
-
-        // Print the stack lines.
-        for _, line := range bucket.Stack.Calls {
-            patchfmt.Printf(
-                "    %-*s %-*s %s(%s)\n",
-                pkgLen, line.Func.PkgName(), srcLen, line.SrcLine(),
-                line.Func.Name(), &line.Args)
         }
         if bucket.Stack.Elided {
             patchio.WriteString(patchos.Stdout, "    (...)\n")
