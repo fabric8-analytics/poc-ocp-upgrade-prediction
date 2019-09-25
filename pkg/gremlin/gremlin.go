@@ -243,7 +243,6 @@ func CreateCompileTimePaths(edges []serviceparser.CompileEdge, serviceName strin
 		callerPkg := fmt.Sprintf("%v", edge.Caller.Package())
 		callerPkg = strings.TrimPrefix(callerPkg, "package ")
 
-
 		calleeFn := edge.Callee.Name()
 		calleePkg := fmt.Sprintf("%v", edge.Callee.Package())
 		calleePkg = strings.TrimPrefix(calleePkg, "package ")

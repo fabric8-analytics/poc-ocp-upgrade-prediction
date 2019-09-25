@@ -30,17 +30,17 @@ var SkipFolderList []string
 func LoadDirectoriesToExclude() {
 	filelocation := os.Getenv("PATCH_SKIP_FOLDER_LIST_FILE")
 	if filelocation != "" {
-			file, err := os.Open(filelocation)
-			if err != nil {
-					panic("failed opening file: ")
-			}
-			scanner := bufio.NewScanner(file)
-			scanner.Split(bufio.ScanLines)
+		file, err := os.Open(filelocation)
+		if err != nil {
+			panic("failed opening file: ")
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
 
-			for scanner.Scan() {
-					SkipFolderList = append(SkipFolderList, scanner.Text())
-			}
-			defer file.Close()
+		for scanner.Scan() {
+			SkipFolderList = append(SkipFolderList, scanner.Text())
+		}
+		defer file.Close()
 	}
 }
 
@@ -312,8 +312,6 @@ func IsIgnoredFileName(builddir, filename string) bool {
 	return !match
 }
 
-
-
 // IsIgnoredFile is a utility that combines all the different ignore clauses because I don't like large if conditions everywhere.
 func IsIgnoredFile(filePath string) bool {
 	dir, filename := filepath.Split(filePath)
@@ -352,7 +350,7 @@ func IsRestrictedDir(dirname string) bool {
 		return true
 	}
 	// Map because this language has no sets. I know, very ugly.
-	skipList := map[string]bool{".git": true, ".mk": true, "third_party": true,  "staging": true, "test": true, "tools": true}
+	skipList := map[string]bool{".git": true, ".mk": true, "third_party": true, "staging": true, "test": true, "tools": true}
 
 	_, isPresent := skipList[dirname]
 	return isPresent
@@ -361,7 +359,7 @@ func IsRestrictedDir(dirname string) bool {
 // PatchSourceComponents need to be parsed from the yaml that is supplied to patchsource binary.
 type PatchSourceComponents struct {
 	Imports     map[string]string `yaml:"imports,omitempty"`
-	FuncName    string	      `yaml:"func_name,omitempty"`
+	FuncName    string            `yaml:"func_name,omitempty"`
 	FuncBody    string            `yaml:"func_body,omitempty"`
 	PrependBody string            `yaml:"prepend_body,omitempty"`
 }
@@ -380,4 +378,3 @@ func ReadCodeFromYaml(configYamlPath string) *PatchSourceComponents {
 
 	return &components
 }
-

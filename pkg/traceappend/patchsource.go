@@ -2,11 +2,11 @@ package traceappend
 
 import (
 	"fmt"
+	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
 	"os"
 	"path/filepath"
-	"strings"
 	"strconv"
-	"github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -39,7 +39,7 @@ func PatchSource(sourcePath, configYamlPath string) {
 			slogger.Infof("Patching file: %v\n", path)
 			dirName := filepath.Dir(path)
 			_, hasTracer := addedTracer[dirName]
-			err = patchFile(path, configYamlPath,index)
+			err = patchFile(path, configYamlPath, index)
 			index++
 			if err != nil {
 				return err
@@ -64,7 +64,7 @@ func patchFile(filePath, configYamlPath string, fileIndex int) error {
 	functionName := ""
 
 	if yamlComponents.FuncName != "" {
-		functionName = yamlComponents.FuncName 
+		functionName = yamlComponents.FuncName
 	}
 	var modifiedFunction string
 	modifiedFunction = strconv.Itoa(int(fileIndex))
