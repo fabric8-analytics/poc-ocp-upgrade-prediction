@@ -54,10 +54,10 @@ Inside the dynamodb subrepo, lives a pom.xml that we use to start dynamodb. Insi
                 "KUBERNETES_SERVICE_PORT": 6443, // Port on which your Kubernetes cluster API is running, this is generally 6443 AFAIK.
                 "KUBERNETES_SERVICE_HOST": "PATH_TO_YOUR_DEV_CLUSTER_API", // Path to a running Kubernetes cluster that we need to run the end to end tests/service end to end tests. Is of the form api.*.devcluster.openshift.com
                 "REMOTE_SERVER_URL": "", // This is the path to the layer running the origin end-to-end test wrapper.
- 	            	"AWS_SQS_QUEUE_NAME": "",  // Name of the queue where runtime call stacks are captured
+ 	            "AWS_SQS_QUEUE_NAME": "",  // Name of the queue where runtime call stacks are captured
                 "AWS_SQS_REGION":     "", // AWS region where SQS queue is located
- 		            "AWS_ACCESS_KEY_ID" : "",  // AWS access key
-		            "AWS_SECRET_ACCESS_KEY": "", // AWS secret 
+ 		          "AWS_ACCESS_KEY_ID" : "",  // AWS access key
+		          "AWS_SECRET_ACCESS_KEY": "", // AWS secret 
                 "OPENSHIFT_CAPTURE_TRACE"= false, // Enable capturing runtime paths at SQS queues
                 "OPENSHIFT_PRINT_TRACE_ON_CONSOLE"= "", // Enable capturing runtime paths at console
                 "PATCH_SKIP_FOLDER_LIST_FILE"= "ignore-dirs-for-patching.txt", //Location of file containing list of directories for getting exlcuding from the patching process  
