@@ -19,17 +19,30 @@ import (
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
-	"github.com/aws/aws-sdk-go/aws"
-    awssession "github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"strconv"
 )
 
 var logger, _ = zap.NewDevelopment()
 var sugarLogger = logger.Sugar()
-var AWSService 			*sqs.SQS
-var AWSSQSQueueUrl 		string
-var AWSSQSQueueName	   	string
+
+var SkipFolderList []string
+
+// Read the the directories to get excluded from patching. This is required to patch all the 'vendor' packages under OpenShift
+func LoadDirectoriesToExclude() {
+	filelocation := os.Getenv("PATCH_SKIP_FOLDER_LIST_FILE")
+	if filelocation != "" {
+			file, err := os.Open(filelocation)
+			if err != nil {
+					panic("failed opening file: ")
+			}
+			scanner := bufio.NewScanner(file)
+			scanner.Split(bufio.ScanLines)
+
+			for scanner.Scan() {
+					SkipFolderList = append(SkipFolderList, scanner.Text())
+			}
+			defer file.Close()
+	}
+}
 
 // RunCloneShell runs a git clone inside a child shell and clones it as a subdir inside destdir in the workspace style
 // of go. Returns false if nothing is cloned
@@ -299,9 +312,20 @@ func IsIgnoredFileName(builddir, filename string) bool {
 	return !match
 }
 
+
+
 // IsIgnoredFile is a utility that combines all the different ignore clauses because I don't like large if conditions everywhere.
 func IsIgnoredFile(filePath string) bool {
 	dir, filename := filepath.Split(filePath)
+
+	if SkipFolderList != nil {
+		for _, name := range SkipFolderList {
+			if strings.Index(filePath, name) != -1 {
+				return true
+			}
+		}
+	}
+
 	if filepath.Ext(filePath) != ".go" {
 		return true
 	}
@@ -328,7 +352,8 @@ func IsRestrictedDir(dirname string) bool {
 		return true
 	}
 	// Map because this language has no sets. I know, very ugly.
-	skipList := map[string]bool{".git": true, "third_party": true, "test": true, "tools": true}
+	skipList := map[string]bool{".git": true, ".mk": true, "third_party": true,  "staging": true, "test": true, "tools": true}
+
 	_, isPresent := skipList[dirname]
 	return isPresent
 }
@@ -356,65 +381,3 @@ func ReadCodeFromYaml(configYamlPath string) *PatchSourceComponents {
 	return &components
 }
 
-// Create a new SQS queue if not created already to store  the entire raw collection of runtime call stacks
-func CreateSQSQueue(queuename string) {
-
-	AWSSQSRegion := os.Getenv("AWS_SQS_REGION")
-	if AWSSQSRegion == "" {
-		AWSSQSRegion = "us-west-2"
-	}
-
-	sess, err := awssession.NewSession(&aws.Config{
-        Region: aws.String(AWSSQSRegion)},
-	)
-	if err != nil {
-		sugarLogger.Fatalf("Could not connect to AWS for creating SQS queue %s : %v", queuename, err)
-		return 
-	}
-
-	AWSService = sqs.New(sess)
-    response, err := AWSService.CreateQueue(&sqs.CreateQueueInput{
-        QueueName: aws.String(queuename),
-        Attributes: map[string]*string{
-            "DelaySeconds":           aws.String("120"),
-            "MessageRetentionPeriod": aws.String("172800"),
-		},
-	})
-	
-	if err != nil {
-		fmt.Printf("Could not create SQS queue %s : %v", queuename, err)
-	} else {
-		fmt.Printf("--- Successfully created queue with the name : ", queuename)
-		AWSSQSQueueUrl = *response.QueueUrl
-	}
-}
-
-// publish entire raw collection of runtime call stacks
-func PublishCallStack(callstackjson string, callstackid int) {
-	if AWSService == nil {
-			fmt.Println("--- AWS session is not available")
-			AWSSQSQueueName = os.Getenv("AWS_SQS_QueueName")
-			if AWSSQSQueueName == "" {
-				AWSSQSQueueName = "ocp-test-upgrade"
-			}
-			CreateSQSQueue(AWSSQSQueueName)
-	}
-	if AWSService != nil {
-		response, err := AWSService.SendMessage(&sqs.SendMessageInput{
-			DelaySeconds: aws.Int64(20),
-			MessageAttributes: map[string]*sqs.MessageAttributeValue{
-				"CallStack_ID": &sqs.MessageAttributeValue{
-					DataType:    aws.String("String"),
-					StringValue: aws.String(strconv.Itoa(callstackid)),
-				},
-			},	
-			MessageBody: aws.String(callstackjson),
-			QueueUrl:    &AWSSQSQueueUrl,
-		})	
-		if err != nil {
-			fmt.Printf("Could not send message %s : %v", callstackjson, err)
-		} else {
-			fmt.Printf("--- Successfully sent message %s : ", *response.MessageId)
-		}
-	}
-}
