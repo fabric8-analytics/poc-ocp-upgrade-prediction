@@ -5,12 +5,32 @@ imports:
   patchbytes: bytes
   patchstack: github.com/maruel/panicparse/stack
   patchjson:  encoding/json
-  patchqueue: github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/utils
+  patchsqsutil: github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/sqsconnect
+  patchstrconv: strconv
+  patchfmt: fmt
 
 func_name:
   logStatement
 func_body: |
   func logStatement() {
+    traceflagstr := patchos.Getenv("OPENSHIFT_CAPTURE_TRACE")
+    if traceflagstr == "" {
+        panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
+    }
+    traceflag, error := patchstrconv.ParseBool(traceflagstr)    
+    if error != nil {
+        panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
+    }
+    consoleTraceFlagStr := patchos.Getenv("OPENSHIFT_PRINT_TRACE_ON_CONSOLE")
+    var consoleTraceFlag bool = false
+    if consoleTraceFlagStr != "" {
+        consoleTraceFlag, error = patchstrconv.ParseBool(consoleTraceFlagStr)    
+        if error != nil {
+         panic("Please set OPENSHIFT_PRINT_TRACE_ON_CONSOLE to true/false")
+        }
+    }
+
+    if (traceflag) {
     callstack := patchinfo.Stack()
     in := patchbytes.NewBufferString(string(callstack))
     c, err := patchstack.ParseDump(in, patchos.Stdout, true)
@@ -39,7 +59,7 @@ func_body: |
         // Print the goroutine header.
         extra := ""
         bucketjson, _ := patchjson.Marshal(bucket)
-        go patchqueue.PublishCallStack(string(bucketjson), 1)
+        go patchsqsutil.PublishCallStack(string(bucketjson), 1)
         if s := bucket.SleepString(); s != "" {
             extra += " [" + s + "]"
         }
@@ -49,10 +69,20 @@ func_body: |
         if c := bucket.CreatedByString(false); c != "" {
             extra += " [Created by " + c + "]"
         }
-        if bucket.Stack.Elided {
-            patchio.WriteString(patchos.Stdout, "    (...)\n")
+        if consoleTraceFlag {
+            patchfmt.Printf("%d %d: %s%s\n", bucket.IDs, len(bucket.IDs), bucket.State, extra)
+            // Print the stack lines.
+            for _, line := range bucket.Stack.Calls {
+                patchfmt.Printf(
+                    "    %-*s %-*s %s(%s)\n",
+                    pkgLen, line.Func.PkgName(), srcLen, line.FullSrcLine(),
+                    line.Func.Name(), &line.Args)
+            }
+            if bucket.Stack.Elided {
+                patchio.WriteString(patchos.Stdout, "    (...)\n")
+            }
         }
     }
-  }
+  } }
 prepend_body: |
   defer logStatement()
