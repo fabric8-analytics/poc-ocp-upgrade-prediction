@@ -54,10 +54,13 @@ Inside the dynamodb subrepo, lives a pom.xml that we use to start dynamodb. Insi
                 "KUBERNETES_SERVICE_PORT": 6443, // Port on which your Kubernetes cluster API is running, this is generally 6443 AFAIK.
                 "KUBERNETES_SERVICE_HOST": "PATH_TO_YOUR_DEV_CLUSTER_API", // Path to a running Kubernetes cluster that we need to run the end to end tests/service end to end tests. Is of the form api.*.devcluster.openshift.com
                 "REMOTE_SERVER_URL": "" // This is the path to the layer running the origin end-to-end test wrapper.
- 	            	"AWS_SQS_QueueName":   //Name of the queue where runtime call stacks are captured
-                "AWS_SQS_REGION":     // AWS region where SQS queue is located
- 		            "AWS_ACCESS_KEY_ID" :   // AWS access key
-		            "AWS_SECRET_ACCESS_KEY" : // AWS secret 
+ 	            	"AWS_SQS_QUEUE_NAME": ""  //Name of the queue where runtime call stacks are captured
+                "AWS_SQS_REGION":     ""// AWS region where SQS queue is located
+ 		            "AWS_ACCESS_KEY_ID" : ""  // AWS access key
+		            "AWS_SECRET_ACCESS_KEY": "" // AWS secret 
+                "OPENSHIFT_CAPTURE_TRACE"=false // Enable capturing runtime paths at SQS queues
+                "OPENSHIFT_PRINT_TRACE_ON_CONSOLE"= "" // Enable capturing runtime paths at console
+                "PATCH_SKIP_FOLDER_LIST_FILE"= //Location of file containing list of directories for getting exlcuding from the patching process  
             }
 ```
 
@@ -108,7 +111,7 @@ prepend_body: |
 ```
 The above yaml, when saved in a file called `source_config.yaml` and passed to the binary as with:
 ```bash
-  $ patchsource --source-dir=[path_to_origin_dir] --AWS_SQS_REGION=us-west-2 --AWS_SQS_QueueName=queue_name --code-config-yaml=sources_config.yaml  # Excludes vendor, to include it see below.
+  $ patchsource --source-dir=[path_to_origin_dir]  --code-config-yaml=sources_config.yaml  # Excludes vendor, to include it see below.
 ```
 will change all packages of the source pointed to by source dir to:
   - Add imports marked under imports with the name as the key and the importpath as the value to the function, i.e. `godefaultfmt: fmt` becomes `import godefaultfmt "fmt"` in the Go source code.
