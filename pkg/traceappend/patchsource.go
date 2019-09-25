@@ -16,6 +16,9 @@ var slogger = logger.Sugar()
 
 // PatchSource patches a source path to add tracing.
 func PatchSource(sourcePath, configYamlPath string) {
+
+	utils.LoadDirectoriesToExclude()
+
 	index := 0
 	addedTracer := make(map[string]bool)
 	slogger.Infof("Patching sourcePath: %v\n", sourcePath)
