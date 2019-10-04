@@ -148,6 +148,9 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 # gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2
+# myitcv.io v0.0.0-20190927111909-7837eed0ff8e
+myitcv.io/hybridimporter
+myitcv.io/hybridimporter/srcimporter
 # sourcegraph.com/sourcegraph/go-diff v0.5.0
 sourcegraph.com/sourcegraph/go-diff/diff
 # sourcegraph.com/sqs/pbtypes v0.0.0-20180604144634-d3ebe8f20ae4
