@@ -1,5 +1,7 @@
 module github.com/fabric8-analytics/poc-ocp-upgrade-prediction
 
+replace github.com/maruel/panicparse v1.3.0 => github.com/rootAvish/panicparse v1.3.1-0.20191009094122-17ac24ae1635
+
 require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/Sirupsen/logrus v1.0.6 // indirect
@@ -12,6 +14,7 @@ require (
 	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/google/go-github/v24 v24.0.0
+	github.com/maruel/panicparse v1.3.0
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
@@ -25,7 +28,6 @@ require (
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
-	golang.org/x/sys v0.0.0-20190312061237-fead79001313 // indirect
 	golang.org/x/tools v0.0.0-20190328211700-ab21143f2384
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
@@ -42,3 +44,5 @@ exclude github.com/Sirupsen/logrus v1.2.0
 exclude github.com/Sirupsen/logrus v1.1.1
 
 exclude github.com/Sirupsen/logrus v1.1.0
+
+go 1.13
