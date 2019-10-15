@@ -37,6 +37,12 @@ func CreateSQSQueue() {
 	}
 
 	AWSService = sqs.New(sess)
+	qurl, err := AWSService.GetQueueUrl(&sqs.GetQueueUrlInput{
+		QueueName: &queuename,
+	})
+	if err == nil && *qurl.QueueUrl != "" {
+		AWSSQSQueueUrl = *qurl.QueueUrl
+	}
 	response, err := AWSService.CreateQueue(&sqs.CreateQueueInput{
 		QueueName: aws.String(queuename),
 		Attributes: map[string]*string{
@@ -56,9 +62,8 @@ func CreateSQSQueue() {
 func PublishCallStack(callstackjson string, callstackid int) {
 	if AWSService == nil {
 		CreateSQSQueue()
-	}
-	if AWSService != nil {
-		AWSService.SendMessage(&sqs.SendMessageInput{
+	} else {
+		_, err := AWSService.SendMessage(&sqs.SendMessageInput{
 			DelaySeconds: aws.Int64(20),
 			MessageAttributes: map[string]*sqs.MessageAttributeValue{
 				"CallStack_ID": &sqs.MessageAttributeValue{
@@ -69,5 +74,8 @@ func PublishCallStack(callstackjson string, callstackid int) {
 			MessageBody: aws.String(callstackjson),
 			QueueUrl:    &AWSSQSQueueUrl,
 		})
+		if err != nil {
+			sugarLogger.Errorf("Failed to put message in queue. Error: %v\n", err)
+		}
 	}
 }

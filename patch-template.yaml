@@ -8,11 +8,13 @@ imports:
   patchsqsutil: github.com/fabric8-analytics/poc-ocp-upgrade-prediction/pkg/sqsconnect
   patchstrconv: strconv
   patchfmt: fmt
+  patchsync: sync
 
 func_name:
   logStatement
 func_body: |
   func logStatement() {
+    var wg patchsync.WaitGroup
     traceflagstr := patchos.Getenv("OPENSHIFT_CAPTURE_TRACE")
     if traceflagstr == "" {
         panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
@@ -59,8 +61,12 @@ func_body: |
         // Print the goroutine header.
         extra := ""
         bucketjson, _ := patchjson.Marshal(bucket)
-        go patchsqsutil.PublishCallStack(string(bucketjson), 1)
-        if s := bucket.SleepString(); s != "" {
+        wg.Add(1)
+        go func() {
+            patchsqsutil.PublishCallStack(string(bucketjson), 1)
+            wg.Done()
+        }()
+  	    if s := bucket.SleepString(); s != "" {
             extra += " [" + s + "]"
         }
         if bucket.Locked {
@@ -70,19 +76,21 @@ func_body: |
             extra += " [Created by " + c + "]"
         }
         if consoleTraceFlag {
-            patchfmt.Printf("%d %d: %s%s\n", bucket.IDs, len(bucket.IDs), bucket.State, extra)
-            // Print the stack lines.
-            for _, line := range bucket.Stack.Calls {
-                patchfmt.Printf(
-                    "    %-*s %-*s %s(%s)\n",
-                    pkgLen, line.Func.PkgName(), srcLen, line.FullSrcLine(),
-                    line.Func.Name(), &line.Args)
-            }
-            if bucket.Stack.Elided {
-                patchio.WriteString(patchos.Stdout, "    (...)\n")
-            }
+          patchfmt.Printf("%d %d: %s%s\n", bucket.IDs, len(bucket.IDs), bucket.State, extra)
+          // Print the stack lines.
+          for _, line := range bucket.Stack.Calls {
+              patchfmt.Printf(
+                  "    %-*s %-*s %s(%s)\n",
+                  pkgLen, line.Func.PkgName(), srcLen, line.FullSrcLine(),
+                  line.Func.Name(), &line.Args)
+          }
+          if bucket.Stack.Elided {
+              patchio.WriteString(patchos.Stdout, "    (...)\n")
+          }
         }
+      }
     }
-  } }
+    wg.Wait()
+  }
 prepend_body: |
   defer logStatement()
