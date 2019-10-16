@@ -7,6 +7,7 @@ package stack
 import (
 	"fmt"
 	"sort"
+	gset "github.com/deckarep/golang-set"
 )
 
 // Similarity is the level at which two call lines arguments must match to be
@@ -68,6 +69,36 @@ func Aggregate(goroutines []*Goroutine, similar Similarity) []*Bucket {
 	}
 	sort.Sort(out)
 	return out
+}
+
+// AggreateSubsets aggregates all subsets of goroutines[] into their toplevel stacks.
+// First cut compares every stack to ever other stack. Optimize in due time.
+func AggregateSubsets(goroutines []*Goroutine) []*Bucket {
+	var aggregated []*Bucket
+	// First find the longest goroutine stacktrace.
+	largestStack := 0
+	largestTraceLen := 0
+	for i, routine := range goroutines {
+		if len(routine.Signature.Stack.Calls) > largestTraceLen {
+			largestStack = i
+			largestTraceLen = len(routine.Signature.Stack.Calls)
+		}
+	}
+	set := gset.NewSet(largestStack)
+	for _, routine := range goroutines {
+		set.Add(
+			&Bucket{
+				Signature: routine.Signature,
+				IDs:       nil,
+				First:     false,
+		})
+	}
+	return aggregated
+}
+
+func flattenStack(callStack []*Call) gset.Set {
+	flatStack := gset.NewSet(callStack)
+	return flatStack
 }
 
 // Bucket is a stack trace signature and the list of goroutines that fits this

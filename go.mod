@@ -1,6 +1,6 @@
 module github.com/fabric8-analytics/poc-ocp-upgrade-prediction
 
-replace github.com/maruel/panicparse v1.3.0 => github.com/rootAvish/panicparse v1.3.1-0.20191009094122-17ac24ae1635
+replace github.com/maruel/panicparse v1.3.0 => /Users/avgupta/golang/src/github.com/rootavish/panicparse
 
 require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
