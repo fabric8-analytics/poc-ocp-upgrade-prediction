@@ -15,6 +15,7 @@ func StoreFunctionCallsToLog() {
 		SharedConfigState: session.SharedConfigEnable,
 		Config: aws.Config{
 			Region: aws.String(os.Getenv("AWS_SQS_REGION")),
+			Endpoint: aws.String(os.Getenv("SQS_ENDPOINT")),
 		},
 	}))
 
