@@ -28,8 +28,9 @@ func_body: |
       in := patchbytes.NewBufferString(string(callstack))
       c, err := patchstack.ParseDump(in, patchos.Stdout, true)
       if err != nil {
-      return
+        return
       }
+      patchfmt.Printf("Sending callstack to SQS: %v\n", c)
       stackJSON, err := patchjson.Marshal(c)
       if err != nil {
         patchfmt.Printf("Got error in trying to Marshal stack to JSON: %v\n", err)
@@ -37,6 +38,7 @@ func_body: |
       }
       wg.Add(1)
       go func() {
+        patchfmt.Printf("Now publishing to SQS\n")
         patchsqsutil.PublishCallStack(string(stackJSON), 1)
         wg.Done()
       }()
