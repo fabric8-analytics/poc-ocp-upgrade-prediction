@@ -1,7 +1,6 @@
 imports:
   patchinfo: runtime/debug
   patchos: os
-  patchsync: sync
   patchbytes: bytes
   patchstack: github.com/maruel/panicparse/stack
   patchjson:  encoding/json
@@ -14,7 +13,6 @@ func_name:
   logStatement
 func_body: |
   func logStatement() {
-    var wg patchsync.WaitGroup
     traceflagstr := patchos.Getenv("OPENSHIFT_CAPTURE_TRACE")
     if traceflagstr == "" {
       panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
@@ -36,14 +34,9 @@ func_body: |
         patchfmt.Printf("Got error in trying to Marshal stack to JSON: %v\n", err)
         return
       }
-      wg.Add(1)
-      go func() {
-        patchfmt.Printf("Now publishing to SQS\n")
-        patchsqsutil.PublishCallStack(string(stackJSON), 1)
-        wg.Done()
-      }()
+      patchfmt.Printf("Now publishing to SQS\n")
+      patchsqsutil.PublishCallStack(string(stackJSON), 1)
     }
-    wg.Wait()
   }
 
 prepend_body: |
