@@ -28,7 +28,6 @@ ugorji/go/codec
 gorilla/websocket
 gonum/internal/asm/f64
 golang.org/x/net/http2
-aws/aws-sdk-go/internal/sdkio
 golang.org/x/text/language
 docker/go-connections/tlsconfig
 golang.org/x/crypto/poly1305
@@ -39,9 +38,16 @@ gonum.org/v1/gonum/internal/asm/c128
 gonum.org/v1/gonum/internal/math32
 gonum/blas/native/internal
 golang.org/x/net/trace
-aws/aws-sdk-go/aws
 oc/lib/tokencmd
 golang.org/x/net/ipv4
 golang.org/x/net/ipv6
 aws/aws-sdk-go/service/s3
 kubelet/cadvisor
+aws-sdk-go
+go-ini/ini
+jmespath/go-jmespath
+go.uber.org/zap
+go.uber.org/atomic
+go.uber.org/multierr
+fsnotify/fsnotify
+apimachinery/pkg/version

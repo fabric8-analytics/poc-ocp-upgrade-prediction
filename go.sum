@@ -12,8 +12,6 @@ github.com/cockroachdb/apd/v2 v2.0.1/go.mod h1:DDxRlzC2lo3/vSlmSoS7JkqbbrARPuFOG
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/deckarep/golang-set v1.7.1 h1:SCQV0S6gTtp6itiFrTqI+pfmJ4LN85S1YzhDf9rTHJQ=
-github.com/deckarep/golang-set v1.7.1/go.mod h1:93vsz/8Wt4joVM7c2AVqh+YRMiUSc14yDtF28KmMOgQ=
 github.com/docker/distribution v2.7.1+incompatible h1:a5mlkVzth6W5A4fOsS3D2EO5BUmsJpcB+cRlLU7cSug=
 github.com/docker/distribution v2.7.1+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
 github.com/docker/docker v1.13.1 h1:IkZjBSIc8hBjLpqeAbeE5mca5mNgeatLHBy3GO78BWo=
@@ -90,8 +88,8 @@ github.com/retr0h/go-gilt v0.0.0-20190206215556-f73826b37af2/go.mod h1:7PJr6TwZ6
 github.com/rogpeppe/go-internal v1.0.1-alpha.6/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.2.1/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.2.2/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
-github.com/rootAvish/panicparse v1.3.1-0.20191009094122-17ac24ae1635 h1:UH7Hal0ryddTV30XwGyuRM1aCTX0oJ9I5uJrIZNDP7k=
-github.com/rootAvish/panicparse v1.3.1-0.20191009094122-17ac24ae1635/go.mod h1:5BjgckMmkx7Kil31Sj7BMgzrbHXUCtrrNe+sRamOY/I=
+github.com/rootavish/panicparse v1.3.1-0.20191024160457-fcd8cc2acdba h1:BEa6Q4Bhz5VPUUjtcBeYUp0phFiKUNlTE3+2bRBfBnE=
+github.com/rootavish/panicparse v1.3.1-0.20191024160457-fcd8cc2acdba/go.mod h1:5BjgckMmkx7Kil31Sj7BMgzrbHXUCtrrNe+sRamOY/I=
 github.com/russross/blackfriday v1.5.1/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/sclevine/agouti v3.0.0+incompatible/go.mod h1:b4WX9W9L1sfQKXeJf1mUTLZKJ48R1S7H23Ji7oFO5Bw=
 github.com/shurcooL/go v0.0.0-20180423040247-9e1955d9fb6e h1:MZM7FHLqUHYI0Y/mQAt3d2aYa0SiNms/hFqC9qJYolM=
