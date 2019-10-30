@@ -88,8 +88,8 @@ github.com/retr0h/go-gilt v0.0.0-20190206215556-f73826b37af2/go.mod h1:7PJr6TwZ6
 github.com/rogpeppe/go-internal v1.0.1-alpha.6/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.2.1/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.2.2/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
-github.com/rootAvish/panicparse v1.3.1-0.20191009094122-17ac24ae1635 h1:UH7Hal0ryddTV30XwGyuRM1aCTX0oJ9I5uJrIZNDP7k=
-github.com/rootAvish/panicparse v1.3.1-0.20191009094122-17ac24ae1635/go.mod h1:5BjgckMmkx7Kil31Sj7BMgzrbHXUCtrrNe+sRamOY/I=
+github.com/rootavish/panicparse v1.3.1-0.20191024160457-fcd8cc2acdba h1:BEa6Q4Bhz5VPUUjtcBeYUp0phFiKUNlTE3+2bRBfBnE=
+github.com/rootavish/panicparse v1.3.1-0.20191024160457-fcd8cc2acdba/go.mod h1:5BjgckMmkx7Kil31Sj7BMgzrbHXUCtrrNe+sRamOY/I=
 github.com/russross/blackfriday v1.5.1/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/sclevine/agouti v3.0.0+incompatible/go.mod h1:b4WX9W9L1sfQKXeJf1mUTLZKJ48R1S7H23Ji7oFO5Bw=
 github.com/shurcooL/go v0.0.0-20180423040247-9e1955d9fb6e h1:MZM7FHLqUHYI0Y/mQAt3d2aYa0SiNms/hFqC9qJYolM=

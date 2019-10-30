@@ -82,7 +82,7 @@ github.com/google/go-github/v24/github
 github.com/google/go-querystring/query
 # github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
 github.com/jmespath/go-jmespath
-# github.com/maruel/panicparse v1.3.0 => github.com/rootAvish/panicparse v1.3.1-0.20191009094122-17ac24ae1635
+# github.com/maruel/panicparse v1.3.0 => github.com/rootavish/panicparse v1.3.1-0.20191024160457-fcd8cc2acdba
 github.com/maruel/panicparse/stack
 # github.com/opencontainers/go-digest v1.0.0-rc1
 github.com/opencontainers/go-digest

@@ -1,7 +1,6 @@
 imports:
   patchinfo: runtime/debug
   patchos: os
-  patchio: io
   patchbytes: bytes
   patchstack: github.com/maruel/panicparse/stack
   patchjson:  encoding/json
@@ -14,83 +13,31 @@ func_name:
   logStatement
 func_body: |
   func logStatement() {
-    var wg patchsync.WaitGroup
     traceflagstr := patchos.Getenv("OPENSHIFT_CAPTURE_TRACE")
     if traceflagstr == "" {
-        panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
+      panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
     }
-    traceflag, error := patchstrconv.ParseBool(traceflagstr)    
-    if error != nil {
-        panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
-    }
-    consoleTraceFlagStr := patchos.Getenv("OPENSHIFT_PRINT_TRACE_ON_CONSOLE")
-    var consoleTraceFlag bool = false
-    if consoleTraceFlagStr != "" {
-        consoleTraceFlag, error = patchstrconv.ParseBool(consoleTraceFlagStr)    
-        if error != nil {
-         panic("Please set OPENSHIFT_PRINT_TRACE_ON_CONSOLE to true/false")
-        }
-    }
-
-    if (traceflag) {
-    callstack := patchinfo.Stack()
-    in := patchbytes.NewBufferString(string(callstack))
-    c, err := patchstack.ParseDump(in, patchos.Stdout, true)
+    traceflag, err := patchstrconv.ParseBool(traceflagstr)
     if err != nil {
+      panic("Please set OPENSHIFT_CAPTURE_TRACE to true/false")
+    }
+    if traceflag {
+      callstack := patchinfo.Stack()
+      in := patchbytes.NewBufferString(string(callstack))
+      c, err := patchstack.ParseDump(in, patchos.Stdout, true)
+      if err != nil {
         return
-    }
-
-    // Find out similar goroutine traces and group them into buckets.
-    buckets := patchstack.Aggregate(c.Goroutines, patchstack.ExactLines)
-
-    // Calculate alignment.
-    srcLen := 0
-    pkgLen := 0
-    for _, bucket := range buckets {
-        for _, line := range bucket.Signature.Stack.Calls {
-            if l := len(line.FullSrcLine()); l > srcLen {
-                srcLen = l
-            }
-            if l := len(line.Func.PkgName()); l > pkgLen {
-                pkgLen = l
-            }
-        }
-    }
-
-    for _, bucket := range buckets {
-        // Print the goroutine header.
-        extra := ""
-        bucketjson, _ := patchjson.Marshal(bucket)
-        wg.Add(1)
-        go func() {
-            patchsqsutil.PublishCallStack(string(bucketjson), 1)
-            wg.Done()
-        }()
-  	    if s := bucket.SleepString(); s != "" {
-            extra += " [" + s + "]"
-        }
-        if bucket.Locked {
-            extra += " [locked]"
-        }
-        if c := bucket.CreatedByString(false); c != "" {
-            extra += " [Created by " + c + "]"
-        }
-        if consoleTraceFlag {
-          patchfmt.Printf("%d %d: %s%s\n", bucket.IDs, len(bucket.IDs), bucket.State, extra)
-          // Print the stack lines.
-          for _, line := range bucket.Stack.Calls {
-              patchfmt.Printf(
-                  "    %-*s %-*s %s(%s)\n",
-                  pkgLen, line.Func.PkgName(), srcLen, line.FullSrcLine(),
-                  line.Func.Name(), &line.Args)
-          }
-          if bucket.Stack.Elided {
-              patchio.WriteString(patchos.Stdout, "    (...)\n")
-          }
-        }
       }
+      patchfmt.Printf("Sending callstack to SQS: %v\n", c)
+      stackJSON, err := patchjson.Marshal(c)
+      if err != nil {
+        patchfmt.Printf("Got error in trying to Marshal stack to JSON: %v\n", err)
+        return
+      }
+      patchfmt.Printf("Now publishing to SQS\n")
+      patchsqsutil.PublishCallStack(string(stackJSON), 1)
     }
-    wg.Wait()
   }
+
 prepend_body: |
   defer logStatement()

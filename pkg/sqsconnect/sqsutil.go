@@ -28,8 +28,9 @@ func CreateSQSQueue() {
 		AWSSQSRegion = "us-west-2"
 	}
 	sess, err := awssession.NewSession(&aws.Config{
-		Region: aws.String(AWSSQSRegion)},
-	)
+		Region:   aws.String(AWSSQSRegion),
+		Endpoint: aws.String(os.Getenv("SQS_ENDPOINT")),
+	})
 
 	if err != nil {
 		sugarLogger.Infof("Could not connect to AWS for creating SQS queue %s : %v", queuename, err)
@@ -75,7 +76,7 @@ func PublishCallStack(callstackjson string, callstackid int) {
 			QueueUrl:    &AWSSQSQueueUrl,
 		})
 		if err != nil {
-			sugarLogger.Errorf("Failed to put message in queue. Error: %v\n", err)
+			sugarLogger.Errorf("Unable to send message to SQS, got error: %v\n", err)
 		}
 	}
 }

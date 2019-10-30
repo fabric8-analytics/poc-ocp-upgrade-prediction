@@ -46,7 +46,7 @@ type Context struct {
 	// Nil is guesspaths was false.
 	GOPATHs map[string]string `json:"GOPATHs"`
 
-	localgoroot  string   `json:"Localgoroot"`
+	localgoroot  string `json:"Localgoroot"`
 	localgopaths []string `json:"Localgopaths"`
 }
 
