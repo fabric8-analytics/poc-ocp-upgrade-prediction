@@ -290,7 +290,7 @@ func GetServiceVersion(dirpath string) string {
 
 // IsGeneratedCode tells you whether a file is generated and should be ignored for patching.
 func IsGeneratedCode(fileContent string) bool {
-	re := regexp.MustCompile(`(?s)^// Code generated.*DO NOT EDIT`)
+	re := regexp.MustCompile(`(?s)// Code generated.*DO NOT EDIT`)
 	matches := re.FindStringIndex(fileContent)
 	if len(matches) != 0 {
 		return true
