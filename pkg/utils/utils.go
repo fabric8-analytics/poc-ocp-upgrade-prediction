@@ -27,10 +27,12 @@ var sugarLogger = logger.Sugar()
 var SkipFolderList []string
 
 // Read the the directories to get excluded from patching. This is required to patch all the 'vendor' packages under OpenShift
-func LoadDirectoriesToExclude() {
+func LoadDirectoriesToExclude() []string {
 	filelocation := os.Getenv("PATCH_SKIP_FOLDER_LIST_FILE")
 	if filelocation != "" {
+		sugarLogger.Infof("Using skip list located at: %s\n",filelocation)
 		file, err := os.Open(filelocation)
+		defer file.Close()
 		if err != nil {
 			panic("failed opening file: ")
 		}
@@ -38,10 +40,10 @@ func LoadDirectoriesToExclude() {
 		scanner.Split(bufio.ScanLines)
 
 		for scanner.Scan() {
-			SkipFolderList = append(SkipFolderList, scanner.Text())
+			SkipFolderList = append(SkipFolderList, strings.TrimSuffix(scanner.Text(), "/"))
 		}
-		defer file.Close()
 	}
+	return SkipFolderList
 }
 
 // RunCloneShell runs a git clone inside a child shell and clones it as a subdir inside destdir in the workspace style
@@ -315,7 +317,9 @@ func IsIgnoredFileName(builddir, filename string) bool {
 // IsIgnoredFile is a utility that combines all the different ignore clauses because I don't like large if conditions everywhere.
 func IsIgnoredFile(filePath string) bool {
 	dir, filename := filepath.Split(filePath)
-
+	if SkipFolderList == nil {
+		SkipFolderList = LoadDirectoriesToExclude()
+	}
 	if SkipFolderList != nil {
 		for _, name := range SkipFolderList {
 			if strings.Index(filePath, name) != -1 {
